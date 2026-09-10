@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 import { getSessionDetail } from "@/lib/data";
 import { getLifts } from "@/lib/data";
 import { addSetEntry, deleteSetEntry } from "@/lib/actions";
@@ -9,8 +9,8 @@ export default async function SessionDetailPage({
   params,
 }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
 
   const [detail, lifts] = await Promise.all([
     getSessionDetail(id, userId),

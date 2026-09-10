@@ -3,8 +3,13 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login"];
+const AUTH_DISABLED = process.env.AUTH_DISABLED === "true";
 
 export default async function proxy(request: NextRequest) {
+  if (AUTH_DISABLED) {
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 

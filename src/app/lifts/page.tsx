@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 import { getLifts } from "@/lib/data";
 import { createLift } from "@/lib/actions";
 import { categoryLabel } from "@/lib/format";
 import { LiftCategory } from "@prisma/client";
 
 export default async function LiftsPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const lifts = await getLifts(userId, true);
 
   const grouped = new Map<LiftCategory, typeof lifts>();

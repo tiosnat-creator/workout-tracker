@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 import { getLiftDetail } from "@/lib/data";
 import { updateLift, addManualOneRepMax } from "@/lib/actions";
 import { categoryLabel, formatDate, formatWeight } from "@/lib/format";
@@ -10,8 +10,8 @@ export default async function LiftDetailPage({
   params,
 }: PageProps<"/lifts/[id]">) {
   const { id } = await params;
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
 
   const detail = await getLiftDetail(id, userId);
   if (!detail) notFound();

@@ -2,16 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { LiftCategory } from "@prisma/client";
 
 async function requireUserId() {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
     redirect("/login");
   }
-  return session.user.id;
+  return userId;
 }
 
 export async function createLift(formData: FormData) {

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 import { getSessions } from "@/lib/data";
 import { formatDate } from "@/lib/format";
 
 export default async function SessionsPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const sessions = await getSessions(userId);
 
   return (
