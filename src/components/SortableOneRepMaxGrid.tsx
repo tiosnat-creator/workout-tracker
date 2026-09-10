@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   DndContext,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -28,6 +30,19 @@ type Tile = {
   current: { weight: number } | null;
 };
 
+function TileContent({ tile }: { tile: Tile }) {
+  const { lift, current } = tile;
+  return (
+    <>
+      <p className="text-xs text-muted">{categoryLabel(lift.category)}</p>
+      <p className="text-sm font-medium">{lift.name}</p>
+      <p className="mt-1 text-lg font-bold">
+        {current ? formatWeight(current.weight) : "—"}
+      </p>
+    </>
+  );
+}
+
 function SortableTile({
   tile,
   wasDraggedRef,
@@ -35,7 +50,7 @@ function SortableTile({
   tile: Tile;
   wasDraggedRef: React.RefObject<boolean>;
 }) {
-  const { lift, current } = tile;
+  const { lift } = tile;
   const {
     attributes,
     listeners,
@@ -48,7 +63,6 @@ function SortableTile({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
@@ -59,29 +73,35 @@ function SortableTile({
       {...attributes}
       {...listeners}
     >
-      <Link
-        href={`/lifts/${lift.id}`}
-        onClick={(e) => {
-          if (wasDraggedRef.current) {
-            e.preventDefault();
-            wasDraggedRef.current = false;
-          }
-        }}
-        className="block"
-        draggable={false}
-      >
-        <p className="text-xs text-muted">{categoryLabel(lift.category)}</p>
-        <p className="text-sm font-medium">{lift.name}</p>
-        <p className="mt-1 text-lg font-bold">
-          {current ? formatWeight(current.weight) : "—"}
-        </p>
-      </Link>
+      {isDragging ? (
+        // Placeholder left behind in the grid; the actual dragged tile
+        // renders in the DragOverlay below so it can float freely without
+        // fighting this element's own layout transform on drop.
+        <div className="invisible">
+          <TileContent tile={tile} />
+        </div>
+      ) : (
+        <Link
+          href={`/lifts/${lift.id}`}
+          onClick={(e) => {
+            if (wasDraggedRef.current) {
+              e.preventDefault();
+              wasDraggedRef.current = false;
+            }
+          }}
+          className="block"
+          draggable={false}
+        >
+          <TileContent tile={tile} />
+        </Link>
+      )}
     </div>
   );
 }
 
 export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const [items, setItems] = useState(tiles);
+  const [activeTile, setActiveTile] = useState<Tile | null>(null);
   const wasDraggedRef = useRef(false);
 
   const sensors = useSensors(
@@ -93,13 +113,16 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     }),
   );
 
-  function handleDragStart() {
+  function handleDragStart(event: DragStartEvent) {
     wasDraggedRef.current = true;
+    const tile = items.find((t) => t.lift.id === event.active.id) ?? null;
+    setActiveTile(tile);
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
+    setActiveTile(null);
     // A click's own "click" event fires right after this and is caught by
     // wasDraggedRef there; fall back to clearing it here too, since a
     // keyboard-completed drag never fires a click to reset it.
@@ -118,17 +141,20 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     });
   }
 
+  function handleDragCancel() {
+    setActiveTile(null);
+    setTimeout(() => {
+      wasDraggedRef.current = false;
+    }, 0);
+  }
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => {
-        setTimeout(() => {
-          wasDraggedRef.current = false;
-        }, 0);
-      }}
+      onDragCancel={handleDragCancel}
     >
       <SortableContext
         items={items.map((t) => t.lift.id)}
@@ -144,6 +170,13 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
           ))}
         </div>
       </SortableContext>
+      <DragOverlay>
+        {activeTile && (
+          <div className="rounded border border-accent bg-surface p-3 shadow-lg">
+            <TileContent tile={activeTile} />
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }
