@@ -6,16 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum LiftCategory {
-  SNATCH
-  CLEAN_AND_JERK
-  SQUAT
-  PULL
-  PRESS
-  ACCESSORY
-  OTHER
-}
-
 model User {
   id           String           @id @default(cuid())
   email        String           @unique
@@ -23,21 +13,35 @@ model User {
   name         String?
   createdAt    DateTime         @default(now())
   lifts        Lift[]
+  categories   Category[]
   sessions     Session[]
   oneRepMaxes  OneRepMaxEntry[]
 }
 
+model Category {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  isUncategorized Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  lifts           Lift[]
+
+  @@unique([userId, name])
+}
+
 model Lift {
-  id          String           @id @default(cuid())
-  userId      String
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  category    LiftCategory
-  archived    Boolean          @default(false)
-  dashboardOrder Int           @default(0)
-  createdAt   DateTime         @default(now())
-  setEntries  SetEntry[]
-  oneRepMaxes OneRepMaxEntry[]
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  categoryId     String
+  category       Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  archived       Boolean          @default(false)
+  dashboardOrder Int              @default(0)
+  createdAt      DateTime         @default(now())
+  setEntries     SetEntry[]
+  oneRepMaxes    OneRepMaxEntry[]
 
   @@unique([userId, name])
 }

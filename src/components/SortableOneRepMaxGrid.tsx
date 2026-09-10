@@ -22,11 +22,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { updateLiftDashboardOrder } from "@/lib/actions";
-import { categoryLabel, formatWeight } from "@/lib/format";
-import type { Lift } from "@prisma/client";
+import { formatWeight } from "@/lib/format";
+import type { Category, Lift } from "@prisma/client";
 
 type Tile = {
-  lift: Lift;
+  lift: Lift & { category: Category };
   current: { weight: number } | null;
 };
 
@@ -34,7 +34,7 @@ function TileContent({ tile }: { tile: Tile }) {
   const { lift, current } = tile;
   return (
     <>
-      <p className="text-xs text-muted">{categoryLabel(lift.category)}</p>
+      <p className="text-xs text-muted">{lift.category.name}</p>
       <p className="text-sm font-medium">{lift.name}</p>
       <p className="mt-1 text-lg font-bold">
         {current ? formatWeight(current.weight) : "—"}

@@ -3,7 +3,7 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { getSessionDetail } from "@/lib/data";
 import { getLifts } from "@/lib/data";
 import { addSetEntry, deleteSetEntry } from "@/lib/actions";
-import { categoryLabel, formatDate, formatWeight } from "@/lib/format";
+import { formatDate, formatWeight } from "@/lib/format";
 
 export default async function SessionDetailPage({
   params,
@@ -91,7 +91,7 @@ export default async function SessionDetailPage({
               >
                 {lifts.map((lift) => (
                   <option key={lift.id} value={lift.id}>
-                    {lift.name} ({categoryLabel(lift.category)})
+                    {lift.name} ({lift.category.name})
                   </option>
                 ))}
               </select>

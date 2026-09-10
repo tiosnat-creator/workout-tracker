@@ -6,6 +6,7 @@ const LINKS = [
   { href: "/sessions", label: "Sessions" },
   { href: "/lifts", label: "Lifts" },
   { href: "/calculator", label: "Calculator" },
+  { href: "/admin", label: "Admin" },
 ];
 
 export function Nav() {

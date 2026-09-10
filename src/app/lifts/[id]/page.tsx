@@ -1,10 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLiftDetail } from "@/lib/data";
-import { updateLift, addManualOneRepMax } from "@/lib/actions";
-import { categoryLabel, formatDate, formatWeight } from "@/lib/format";
+import { addManualOneRepMax } from "@/lib/actions";
+import { formatDate, formatWeight } from "@/lib/format";
 import { OneRepMaxChart } from "@/components/OneRepMaxChart";
-import { LiftCategory } from "@prisma/client";
 
 export default async function LiftDetailPage({
   params,
@@ -24,13 +23,12 @@ export default async function LiftDetailPage({
   }));
 
   const addOneRepMax = addManualOneRepMax.bind(null, lift.id);
-  const saveLift = updateLift.bind(null, lift.id);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <p className="text-xs text-muted">{categoryLabel(lift.category)}</p>
+        <p className="text-xs text-muted">{lift.category.name}</p>
         <h1 className="text-lg font-bold tracking-tight uppercase">
           {lift.name}
         </h1>
@@ -140,60 +138,6 @@ export default async function LiftDetailPage({
             ))}
           </ul>
         )}
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-muted uppercase">
-          Edit lift
-        </h2>
-        <form
-          action={saveLift}
-          className="flex flex-col gap-3 rounded border border-border bg-surface p-3 sm:flex-row sm:items-end"
-        >
-          <div className="flex-1">
-            <label htmlFor="name" className="mb-1 block text-xs font-medium">
-              Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              defaultValue={lift.name}
-              required
-              className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
-            />
-          </div>
-          <div>
-            <label htmlFor="category" className="mb-1 block text-xs font-medium">
-              Category
-            </label>
-            <select
-              id="category"
-              name="category"
-              defaultValue={lift.category}
-              className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
-            >
-              {Object.values(LiftCategory).map((category) => (
-                <option key={category} value={category}>
-                  {categoryLabel(category)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              name="archived"
-              defaultChecked={lift.archived}
-            />
-            Archived
-          </label>
-          <button
-            type="submit"
-            className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground"
-          >
-            Save
-          </button>
-        </form>
       </section>
     </div>
   );
