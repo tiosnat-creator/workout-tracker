@@ -13,6 +13,7 @@ applications:
         variables:
             env:
                 NPM_CONFIG_UPDATE_NOTIFIER: false
+                DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 
         hooks:
             build: |
