@@ -102,6 +102,21 @@ export async function deleteSetEntry(setEntryId: string, sessionId: string) {
   revalidatePath("/");
 }
 
+export async function updateLiftDashboardOrder(orderedLiftIds: string[]) {
+  const userId = await requireUserId();
+
+  await prisma.$transaction(
+    orderedLiftIds.map((liftId, index) =>
+      prisma.lift.updateMany({
+        where: { id: liftId, userId },
+        data: { dashboardOrder: index },
+      }),
+    ),
+  );
+
+  revalidatePath("/");
+}
+
 export async function addManualOneRepMax(liftId: string, formData: FormData) {
   const userId = await requireUserId();
 

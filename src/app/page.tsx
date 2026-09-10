@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getCurrentOneRepMaxes, getSessions } from "@/lib/data";
-import { categoryLabel, formatDate, formatWeight } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { SortableOneRepMaxGrid } from "@/components/SortableOneRepMaxGrid";
 
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
@@ -30,9 +31,14 @@ export default async function DashboardPage() {
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-muted uppercase">
-          Current 1RMs
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-muted uppercase">
+            Current 1RMs
+          </h2>
+          {oneRepMaxes.length > 0 && (
+            <p className="text-xs text-muted">Drag tiles to reorder</p>
+          )}
+        </div>
         {oneRepMaxes.length === 0 ? (
           <p className="text-sm text-muted">
             No lifts yet.{" "}
@@ -42,21 +48,7 @@ export default async function DashboardPage() {
             .
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {oneRepMaxes.map(({ lift, current }) => (
-              <Link
-                key={lift.id}
-                href={`/lifts/${lift.id}`}
-                className="rounded border border-border bg-surface p-3 hover:border-accent"
-              >
-                <p className="text-xs text-muted">{categoryLabel(lift.category)}</p>
-                <p className="text-sm font-medium">{lift.name}</p>
-                <p className="mt-1 text-lg font-bold">
-                  {current ? formatWeight(current.weight) : "—"}
-                </p>
-              </Link>
-            ))}
-          </div>
+          <SortableOneRepMaxGrid tiles={oneRepMaxes} />
         )}
       </section>
 

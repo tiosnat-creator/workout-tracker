@@ -34,6 +34,7 @@ model Lift {
   name        String
   category    LiftCategory
   archived    Boolean          @default(false)
+  dashboardOrder Int           @default(0)
   createdAt   DateTime         @default(now())
   setEntries  SetEntry[]
   oneRepMaxes OneRepMaxEntry[]

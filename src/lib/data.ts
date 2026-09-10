@@ -80,6 +80,7 @@ export async function getCurrentOneRepMaxes(userId: string) {
       return { lift, current: bestOneRepMax(points) };
     }),
   );
+  results.sort((a, b) => a.lift.dashboardOrder - b.lift.dashboardOrder);
   return results;
 }
 
