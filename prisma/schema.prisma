@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LiftCategory {
+  SNATCH
+  CLEAN_AND_JERK
+  SQUAT
+  PULL
+  PRESS
+  ACCESSORY
+  OTHER
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime         @default(now())
+  lifts        Lift[]
+  sessions     Session[]
+  oneRepMaxes  OneRepMaxEntry[]
+}
+
+model Lift {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  category    LiftCategory
+  archived    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  setEntries  SetEntry[]
+  oneRepMaxes OneRepMaxEntry[]
+
+  @@unique([userId, name])
+}
+
+model Session {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime
+  notes      String?
+  createdAt  DateTime   @default(now())
+  setEntries SetEntry[]
+}
+
+model SetEntry {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  liftId    String
+  lift      Lift     @relation(fields: [liftId], references: [id])
+  weight    Float
+  reps      Int
+  rpe       Float?
+  notes     String?
+  order     Int      @default(0)
+}
+
+model OneRepMaxEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  liftId    String
+  lift      Lift     @relation(fields: [liftId], references: [id])
+  weight    Float
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+}

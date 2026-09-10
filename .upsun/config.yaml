@@ -1,0 +1,32 @@
+applications:
+    site:
+        type: "nodejs:22"
+
+        build:
+            flavor: none
+
+        variables:
+            env:
+                NPM_CONFIG_UPDATE_NOTIFIER: false
+
+        hooks:
+            build: |
+                set -eux
+                npm ci
+                npm run build
+
+        web:
+            commands:
+                start: "node server.js"
+            upstream:
+                socket_family: tcp
+            locations:
+                "/":
+                    passthru: true
+
+routes:
+    "https://{default}/":
+        id: site
+        type: upstream
+        primary: true
+        upstream: "site:http"
