@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -28,7 +28,13 @@ type Tile = {
   current: { weight: number } | null;
 };
 
-function SortableTile({ tile }: { tile: Tile }) {
+function SortableTile({
+  tile,
+  wasDraggedRef,
+}: {
+  tile: Tile;
+  wasDraggedRef: React.RefObject<boolean>;
+}) {
   const { lift, current } = tile;
   const {
     attributes,
@@ -56,7 +62,10 @@ function SortableTile({ tile }: { tile: Tile }) {
       <Link
         href={`/lifts/${lift.id}`}
         onClick={(e) => {
-          if (isDragging) e.preventDefault();
+          if (wasDraggedRef.current) {
+            e.preventDefault();
+            wasDraggedRef.current = false;
+          }
         }}
         className="block"
         draggable={false}
@@ -73,6 +82,7 @@ function SortableTile({ tile }: { tile: Tile }) {
 
 export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const [items, setItems] = useState(tiles);
+  const wasDraggedRef = useRef(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -83,8 +93,20 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     }),
   );
 
+  function handleDragStart() {
+    wasDraggedRef.current = true;
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+
+    // A click's own "click" event fires right after this and is caught by
+    // wasDraggedRef there; fall back to clearing it here too, since a
+    // keyboard-completed drag never fires a click to reset it.
+    setTimeout(() => {
+      wasDraggedRef.current = false;
+    }, 0);
+
     if (!over || active.id === over.id) return;
 
     setItems((current) => {
@@ -100,7 +122,13 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setTimeout(() => {
+          wasDraggedRef.current = false;
+        }, 0);
+      }}
     >
       <SortableContext
         items={items.map((t) => t.lift.id)}
@@ -108,7 +136,11 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((tile) => (
-            <SortableTile key={tile.lift.id} tile={tile} />
+            <SortableTile
+              key={tile.lift.id}
+              tile={tile}
+              wasDraggedRef={wasDraggedRef}
+            />
           ))}
         </div>
       </SortableContext>
