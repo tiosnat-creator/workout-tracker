@@ -1,9 +1,14 @@
 applications:
-    site:
+    app:
         type: "nodejs:22"
 
         build:
             flavor: none
+
+        relationships:
+            postgresql:
+                service: postgresql
+                endpoint: postgresql
 
         variables:
             env:
@@ -14,19 +19,28 @@ applications:
                 set -eux
                 npm ci
                 npm run build
+            deploy: |
+                set -eux
+                export DATABASE_URL="postgresql://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_PATH}"
+                npx prisma migrate deploy
+                npx tsx prisma/seed.ts
 
         web:
             commands:
-                start: "node server.js"
+                start: "export DATABASE_URL=\"postgresql://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_PATH}\" && npm run start -- -p $PORT"
             upstream:
                 socket_family: tcp
             locations:
                 "/":
                     passthru: true
 
+services:
+    postgresql:
+        type: postgresql:16
+
 routes:
     "https://{default}/":
-        id: site
+        id: app
         type: upstream
         primary: true
-        upstream: "site:http"
+        upstream: "app:http"
