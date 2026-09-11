@@ -4,6 +4,7 @@ import { getCategoriesWithLiftCounts } from "@/lib/data";
 import { createCategory, renameCategory, deleteCategory } from "@/lib/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { actionErrorMessage } from "@/lib/action-errors";
 
 export default async function AdminCategoriesPage({
   searchParams,
@@ -20,7 +21,9 @@ export default async function AdminCategoriesPage({
         Manage categories
       </h1>
 
-      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
+      <ErrorBanner
+        message={actionErrorMessage(Array.isArray(error) ? error[0] : error)}
+      />
 
       <form
         action={createCategory}

@@ -4,6 +4,7 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { getLifts, getCategories } from "@/lib/data";
 import { createLift } from "@/lib/actions";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { actionErrorMessage } from "@/lib/action-errors";
 
 export default async function AdminLiftsPage({
   searchParams,
@@ -31,7 +32,9 @@ export default async function AdminLiftsPage({
         Manage lifts
       </h1>
 
-      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
+      <ErrorBanner
+        message={actionErrorMessage(Array.isArray(error) ? error[0] : error)}
+      />
 
       {categories.length === 0 ? (
         <p className="text-sm text-muted">

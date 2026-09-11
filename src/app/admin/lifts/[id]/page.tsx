@@ -4,6 +4,7 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { getLift, getCategories } from "@/lib/data";
 import { updateLift } from "@/lib/actions";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { actionErrorMessage } from "@/lib/action-errors";
 
 export default async function AdminLiftEditPage({
   params,
@@ -33,7 +34,9 @@ export default async function AdminLiftEditPage({
         </h1>
       </div>
 
-      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
+      <ErrorBanner
+        message={actionErrorMessage(Array.isArray(error) ? error[0] : error)}
+      />
 
       <form
         action={saveLift}

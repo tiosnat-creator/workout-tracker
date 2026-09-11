@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import type { ActionErrorCode } from "@/lib/action-errors";
 
 async function requireUserId() {
   const userId = await getCurrentUserId();
@@ -15,12 +16,14 @@ async function requireUserId() {
 }
 
 // Next.js masks a thrown Server Action error's message in production
-// (replacing it with a generic digest), so a duplicate-name message thrown
-// here would never actually reach the user. Redirecting with the message in
-// a query param instead survives that masking; the page reads it back.
+// (replacing it with a generic digest), so throwing here would never reach
+// the user. Redirecting with a fixed error CODE survives that masking; the
+// page maps it back to display text via ACTION_ERRORS. Never put free text
+// in the query param — a crafted link could otherwise spoof arbitrary
+// app-styled text.
 async function withUniqueNameError<T>(
   run: () => Promise<T>,
-  message: string,
+  errorCode: ActionErrorCode,
   redirectTo: string,
 ): Promise<T> {
   try {
@@ -30,7 +33,7 @@ async function withUniqueNameError<T>(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      redirect(`${redirectTo}?error=${encodeURIComponent(message)}`);
+      redirect(`${redirectTo}?error=${errorCode}`);
     }
     throw error;
   }
@@ -52,11 +55,14 @@ export async function createLift(formData: FormData) {
 
   await withUniqueNameError(
     () => prisma.lift.create({ data: { userId, name, categoryId } }),
-    `You already have a lift named "${name}".`,
+    "duplicate-lift-name",
     "/admin/lifts",
   );
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
+  // Explicit redirect on success too, so a stale ?error= from an earlier
+  // failed submission on this same URL doesn't linger on the next render.
+  redirect("/admin/lifts");
 }
 
 export async function updateLift(liftId: string, formData: FormData) {
@@ -80,7 +86,7 @@ export async function updateLift(liftId: string, formData: FormData) {
         where: { id: liftId, userId },
         data: { name, categoryId, archived },
       }),
-    `You already have a lift named "${name}".`,
+    "duplicate-lift-name",
     `/admin/lifts/${liftId}`,
   );
   revalidatePath("/admin/lifts");
@@ -88,6 +94,7 @@ export async function updateLift(liftId: string, formData: FormData) {
   revalidatePath("/lifts");
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
+  redirect(`/admin/lifts/${liftId}`);
 }
 
 export async function createCategory(formData: FormData) {
@@ -98,11 +105,12 @@ export async function createCategory(formData: FormData) {
 
   await withUniqueNameError(
     () => prisma.category.create({ data: { userId, name } }),
-    `You already have a category named "${name}".`,
+    "duplicate-category-name",
     "/admin/categories",
   );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
+  redirect("/admin/categories");
 }
 
 export async function renameCategory(categoryId: string, formData: FormData) {
@@ -121,13 +129,14 @@ export async function renameCategory(categoryId: string, formData: FormData) {
 
   await withUniqueNameError(
     () => prisma.category.update({ where: { id: categoryId }, data: { name } }),
-    `You already have a category named "${name}".`,
+    "duplicate-category-name",
     "/admin/categories",
   );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
   revalidatePath("/");
+  redirect("/admin/categories");
 }
 
 export async function deleteCategory(categoryId: string) {

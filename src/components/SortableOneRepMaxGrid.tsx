@@ -121,6 +121,10 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const [saveError, setSaveError] = useState(false);
   const wasDraggedRef = useRef(false);
   const saveSeqRef = useRef(0);
+  // The last order actually confirmed persisted — as opposed to each drag's
+  // own local "previous" snapshot, which may itself never have been saved
+  // if an earlier save in the same chain also failed.
+  const lastConfirmedRef = useRef(tiles);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -164,11 +168,21 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     // wipe out the newer, already-persisted order.
     const mySeq = ++saveSeqRef.current;
 
-    updateLiftDashboardOrder(next.map((t) => t.lift.id)).catch(() => {
-      if (saveSeqRef.current !== mySeq) return;
-      setItems(previous);
-      setSaveError(true);
-    });
+    updateLiftDashboardOrder(next.map((t) => t.lift.id))
+      .then(() => {
+        if (saveSeqRef.current === mySeq) {
+          lastConfirmedRef.current = next;
+        }
+      })
+      .catch(() => {
+        if (saveSeqRef.current !== mySeq) return;
+        // Revert to the last order actually confirmed persisted, not to
+        // `previous` — if an earlier save in this chain also failed,
+        // `previous` was never saved either and reverting to it would show
+        // an order the database never held.
+        setItems(lastConfirmedRef.current);
+        setSaveError(true);
+      });
   }
 
   function handleDragCancel() {
