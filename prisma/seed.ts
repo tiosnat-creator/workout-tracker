@@ -1,5 +1,4 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
@@ -27,20 +26,19 @@ const DEFAULT_LIFTS: { name: string; category: string }[] = [
 
 async function main() {
   const email = process.env.SEED_USER_EMAIL;
-  const password = process.env.SEED_USER_PASSWORD;
 
-  if (!email || !password) {
-    throw new Error(
-      "SEED_USER_EMAIL and SEED_USER_PASSWORD must be set to seed the database",
-    );
+  if (!email) {
+    throw new Error("SEED_USER_EMAIL must be set to seed the database");
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-
+  // No password: there's no login to check it against anymore (access is
+  // gated at the HTTP layer instead). Kept as an identifying email only.
+  // Clears passwordHash on update too, so a hash from before this change
+  // doesn't sit in the database indefinitely.
   const user = await prisma.user.upsert({
     where: { email },
-    update: { passwordHash },
-    create: { email, passwordHash },
+    update: { passwordHash: null },
+    create: { email },
   });
 
   // This deploy hook runs on every release. Only seed starter categories and

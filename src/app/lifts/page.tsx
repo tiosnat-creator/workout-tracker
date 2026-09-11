@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLifts } from "@/lib/data";
 
 export default async function LiftsPage() {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
   const lifts = await getLifts(userId);
 
   const grouped = new Map<string, typeof lifts>();

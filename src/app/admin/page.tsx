@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 
 const SECTIONS = [
@@ -17,7 +17,7 @@ const SECTIONS = [
 
 export default async function AdminPage() {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   return (
     <div className="flex flex-col gap-6">

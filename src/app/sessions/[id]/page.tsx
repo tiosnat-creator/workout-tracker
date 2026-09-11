@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getSessionDetail } from "@/lib/data";
 import { getLifts } from "@/lib/data";
@@ -10,7 +10,7 @@ export default async function SessionDetailPage({
 }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const [detail, lifts] = await Promise.all([
     getSessionDetail(id, userId),

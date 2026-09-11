@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getBodyWeightEntries, getCurrentBodyWeight } from "@/lib/data";
 import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
@@ -9,7 +9,7 @@ import { DateInput } from "@/components/DateInput";
 
 export default async function BodyWeightPage() {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const [entries, current] = await Promise.all([
     getBodyWeightEntries(userId),

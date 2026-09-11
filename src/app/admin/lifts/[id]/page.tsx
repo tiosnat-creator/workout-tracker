@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLift, getCategories } from "@/lib/data";
 import { updateLift } from "@/lib/actions";
@@ -13,7 +13,7 @@ export default async function AdminLiftEditPage({
   const { id } = await params;
   const { error } = await searchParams;
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const [lift, categories] = await Promise.all([
     getLift(id, userId),

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getCategoriesWithLiftCounts } from "@/lib/data";
 import { createCategory, renameCategory, deleteCategory } from "@/lib/actions";
@@ -10,7 +10,7 @@ export default async function AdminCategoriesPage({
   searchParams,
 }: PageProps<"/admin/categories">) {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const { error } = await searchParams;
   const categories = await getCategoriesWithLiftCounts(userId);
