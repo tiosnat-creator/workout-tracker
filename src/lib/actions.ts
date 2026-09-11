@@ -167,6 +167,7 @@ export async function deleteCategory(categoryId: string) {
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
   revalidatePath("/");
+  redirect("/admin/categories");
 }
 
 export async function createSession(formData: FormData) {

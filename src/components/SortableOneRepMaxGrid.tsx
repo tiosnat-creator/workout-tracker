@@ -170,9 +170,12 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
 
     updateLiftDashboardOrder(next.map((t) => t.lift.id))
       .then(() => {
-        if (saveSeqRef.current === mySeq) {
-          lastConfirmedRef.current = next;
-        }
+        // Record this unconditionally, even if a later drag has since
+        // started (seq mismatch): a successful write is real persisted
+        // truth regardless of what's in flight after it, and a later
+        // save's own failure needs to revert to it, not to a stale value
+        // from before this one landed.
+        lastConfirmedRef.current = next;
       })
       .catch(() => {
         if (saveSeqRef.current !== mySeq) return;
