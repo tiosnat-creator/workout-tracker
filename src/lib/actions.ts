@@ -219,6 +219,9 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
     throw new Error("A lift, weight, and reps are required.");
   }
 
+  const lift = await prisma.lift.findFirst({ where: { id: liftId, userId } });
+  if (!lift) throw new Error("Lift not found.");
+
   const lastOrder = await prisma.setEntry.count({ where: { sessionId } });
 
   await prisma.setEntry.create({

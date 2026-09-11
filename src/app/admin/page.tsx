@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 
 const SECTIONS = [
   {
@@ -13,7 +15,10 @@ const SECTIONS = [
   },
 ];
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold tracking-tight uppercase">Admin</h1>
