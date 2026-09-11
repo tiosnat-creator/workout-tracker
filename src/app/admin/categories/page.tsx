@@ -3,11 +3,15 @@ import { getCurrentUserId } from "@/lib/current-user";
 import { getCategoriesWithLiftCounts } from "@/lib/data";
 import { createCategory, renameCategory, deleteCategory } from "@/lib/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
-export default async function AdminCategoriesPage() {
+export default async function AdminCategoriesPage({
+  searchParams,
+}: PageProps<"/admin/categories">) {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
+  const { error } = await searchParams;
   const categories = await getCategoriesWithLiftCounts(userId);
 
   return (
@@ -15,6 +19,8 @@ export default async function AdminCategoriesPage() {
       <h1 className="text-lg font-bold tracking-tight uppercase">
         Manage categories
       </h1>
+
+      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
 
       <form
         action={createCategory}

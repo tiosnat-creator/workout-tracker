@@ -120,6 +120,7 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const [activeTile, setActiveTile] = useState<Tile | null>(null);
   const [saveError, setSaveError] = useState(false);
   const wasDraggedRef = useRef(false);
+  const saveSeqRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -157,7 +158,14 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     setItems(next);
     setSaveError(false);
 
+    // If a later drag starts before this save settles, only that later
+    // save's own outcome should be allowed to revert the grid — otherwise
+    // this save rejecting after a subsequent one already succeeded would
+    // wipe out the newer, already-persisted order.
+    const mySeq = ++saveSeqRef.current;
+
     updateLiftDashboardOrder(next.map((t) => t.lift.id)).catch(() => {
+      if (saveSeqRef.current !== mySeq) return;
       setItems(previous);
       setSaveError(true);
     });

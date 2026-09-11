@@ -14,9 +14,14 @@ async function requireUserId() {
   return userId;
 }
 
+// Next.js masks a thrown Server Action error's message in production
+// (replacing it with a generic digest), so a duplicate-name message thrown
+// here would never actually reach the user. Redirecting with the message in
+// a query param instead survives that masking; the page reads it back.
 async function withUniqueNameError<T>(
   run: () => Promise<T>,
   message: string,
+  redirectTo: string,
 ): Promise<T> {
   try {
     return await run();
@@ -25,7 +30,7 @@ async function withUniqueNameError<T>(
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      throw new Error(message);
+      redirect(`${redirectTo}?error=${encodeURIComponent(message)}`);
     }
     throw error;
   }
@@ -48,6 +53,7 @@ export async function createLift(formData: FormData) {
   await withUniqueNameError(
     () => prisma.lift.create({ data: { userId, name, categoryId } }),
     `You already have a lift named "${name}".`,
+    "/admin/lifts",
   );
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
@@ -75,6 +81,7 @@ export async function updateLift(liftId: string, formData: FormData) {
         data: { name, categoryId, archived },
       }),
     `You already have a lift named "${name}".`,
+    `/admin/lifts/${liftId}`,
   );
   revalidatePath("/admin/lifts");
   revalidatePath(`/admin/lifts/${liftId}`);
@@ -92,6 +99,7 @@ export async function createCategory(formData: FormData) {
   await withUniqueNameError(
     () => prisma.category.create({ data: { userId, name } }),
     `You already have a category named "${name}".`,
+    "/admin/categories",
   );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
@@ -114,6 +122,7 @@ export async function renameCategory(categoryId: string, formData: FormData) {
   await withUniqueNameError(
     () => prisma.category.update({ where: { id: categoryId }, data: { name } }),
     `You already have a category named "${name}".`,
+    "/admin/categories",
   );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");

@@ -3,11 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLift, getCategories } from "@/lib/data";
 import { updateLift } from "@/lib/actions";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
 export default async function AdminLiftEditPage({
   params,
+  searchParams,
 }: PageProps<"/admin/lifts/[id]">) {
   const { id } = await params;
+  const { error } = await searchParams;
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
@@ -29,6 +32,8 @@ export default async function AdminLiftEditPage({
           Edit {lift.name}
         </h1>
       </div>
+
+      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
 
       <form
         action={saveLift}

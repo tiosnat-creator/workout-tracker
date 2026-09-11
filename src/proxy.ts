@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAuthDisabled } from "@/lib/auth-disabled";
 
 const PUBLIC_PATHS = ["/login"];
-const AUTH_DISABLED = process.env.AUTH_DISABLED === "true";
 
 export default async function proxy(request: NextRequest) {
-  if (AUTH_DISABLED) {
+  if (isAuthDisabled()) {
     return NextResponse.next();
   }
 

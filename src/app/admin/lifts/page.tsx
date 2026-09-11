@@ -3,10 +3,15 @@ import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLifts, getCategories } from "@/lib/data";
 import { createLift } from "@/lib/actions";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
-export default async function AdminLiftsPage() {
+export default async function AdminLiftsPage({
+  searchParams,
+}: PageProps<"/admin/lifts">) {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
+
+  const { error } = await searchParams;
 
   const [lifts, categories] = await Promise.all([
     getLifts(userId, true),
@@ -25,6 +30,8 @@ export default async function AdminLiftsPage() {
       <h1 className="text-lg font-bold tracking-tight uppercase">
         Manage lifts
       </h1>
+
+      <ErrorBanner message={Array.isArray(error) ? error[0] : error} />
 
       {categories.length === 0 ? (
         <p className="text-sm text-muted">
