@@ -42,7 +42,7 @@ export default async function DashboardPage() {
         {oneRepMaxes.length === 0 ? (
           <p className="text-sm text-muted">
             No lifts yet.{" "}
-            <Link href="/lifts" className="text-accent underline">
+            <Link href="/admin/lifts" className="text-accent underline">
               Add one
             </Link>
             .

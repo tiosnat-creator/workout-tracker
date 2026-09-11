@@ -43,18 +43,27 @@ async function main() {
     create: { email, passwordHash },
   });
 
-  await prisma.category.upsert({
-    where: { userId_name: { userId: user.id, name: "Uncategorized" } },
-    update: {},
-    create: { userId: user.id, name: "Uncategorized", isUncategorized: true },
+  // This deploy hook runs on every release. Only seed starter categories and
+  // lifts the first time a user shows up (zero categories) — otherwise a
+  // renamed or deleted default (e.g. "Squat" -> "Squats") would be silently
+  // re-created empty on the next deploy, fighting the user's own edits.
+  const existingCategoryCount = await prisma.category.count({
+    where: { userId: user.id },
+  });
+
+  if (existingCategoryCount > 0) {
+    console.log(`User ${user.email} already has categories — skipping default seed.`);
+    return;
+  }
+
+  await prisma.category.create({
+    data: { userId: user.id, name: "Uncategorized", isUncategorized: true },
   });
 
   const categoryIdByName = new Map<string, string>();
   for (const name of DEFAULT_CATEGORIES) {
-    const category = await prisma.category.upsert({
-      where: { userId_name: { userId: user.id, name } },
-      update: {},
-      create: { userId: user.id, name },
+    const category = await prisma.category.create({
+      data: { userId: user.id, name },
     });
     categoryIdByName.set(name, category.id);
   }
@@ -62,10 +71,8 @@ async function main() {
   for (const lift of DEFAULT_LIFTS) {
     const categoryId = categoryIdByName.get(lift.category);
     if (!categoryId) continue;
-    await prisma.lift.upsert({
-      where: { userId_name: { userId: user.id, name: lift.name } },
-      update: {},
-      create: { userId: user.id, name: lift.name, categoryId },
+    await prisma.lift.create({
+      data: { userId: user.id, name: lift.name, categoryId },
     });
   }
 
