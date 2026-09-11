@@ -56,25 +56,31 @@ async function main() {
     return;
   }
 
-  await prisma.category.create({
-    data: { userId: user.id, name: "Uncategorized", isUncategorized: true },
+  // All-or-nothing: if this dies partway (dropped connection, timeout), the
+  // count-based guard above must still see zero categories on the next
+  // deploy and retry the full seed, rather than being left half-seeded with
+  // categories but no lifts and no way to repair it.
+  await prisma.$transaction(async (tx) => {
+    await tx.category.create({
+      data: { userId: user.id, name: "Uncategorized", isUncategorized: true },
+    });
+
+    const categoryIdByName = new Map<string, string>();
+    for (const name of DEFAULT_CATEGORIES) {
+      const category = await tx.category.create({
+        data: { userId: user.id, name },
+      });
+      categoryIdByName.set(name, category.id);
+    }
+
+    for (const lift of DEFAULT_LIFTS) {
+      const categoryId = categoryIdByName.get(lift.category);
+      if (!categoryId) continue;
+      await tx.lift.create({
+        data: { userId: user.id, name: lift.name, categoryId },
+      });
+    }
   });
-
-  const categoryIdByName = new Map<string, string>();
-  for (const name of DEFAULT_CATEGORIES) {
-    const category = await prisma.category.create({
-      data: { userId: user.id, name },
-    });
-    categoryIdByName.set(name, category.id);
-  }
-
-  for (const lift of DEFAULT_LIFTS) {
-    const categoryId = categoryIdByName.get(lift.category);
-    if (!categoryId) continue;
-    await prisma.lift.create({
-      data: { userId: user.id, name: lift.name, categoryId },
-    });
-  }
 
   console.log(`Seeded user ${user.email} and ${DEFAULT_LIFTS.length} default lifts.`);
 }

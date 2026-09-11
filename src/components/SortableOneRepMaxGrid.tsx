@@ -55,6 +55,7 @@ function SortableTile({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -72,6 +73,7 @@ function SortableTile({
       className="relative rounded border border-border bg-surface p-3 pr-7 touch-none"
     >
       <button
+        ref={setActivatorNodeRef}
         type="button"
         aria-label="Drag to reorder"
         className="absolute right-1 top-1 flex h-6 w-6 cursor-grab items-center justify-center rounded text-muted hover:bg-accent/10 hover:text-accent active:cursor-grabbing"
@@ -116,6 +118,7 @@ function SortableTile({
 export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const [items, setItems] = useState(tiles);
   const [activeTile, setActiveTile] = useState<Tile | null>(null);
+  const [saveError, setSaveError] = useState(false);
   const wasDraggedRef = useRef(false);
 
   const sensors = useSensors(
@@ -146,12 +149,17 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
 
     if (!over || active.id === over.id) return;
 
-    setItems((current) => {
-      const oldIndex = current.findIndex((t) => t.lift.id === active.id);
-      const newIndex = current.findIndex((t) => t.lift.id === over.id);
-      const next = arrayMove(current, oldIndex, newIndex);
-      updateLiftDashboardOrder(next.map((t) => t.lift.id)).catch(() => {});
-      return next;
+    const previous = items;
+    const oldIndex = previous.findIndex((t) => t.lift.id === active.id);
+    const newIndex = previous.findIndex((t) => t.lift.id === over.id);
+    const next = arrayMove(previous, oldIndex, newIndex);
+
+    setItems(next);
+    setSaveError(false);
+
+    updateLiftDashboardOrder(next.map((t) => t.lift.id)).catch(() => {
+      setItems(previous);
+      setSaveError(true);
     });
   }
 
@@ -163,14 +171,20 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
-      <SortableContext
+    <div className="flex flex-col gap-2">
+      {saveError && (
+        <p className="text-xs text-red-600">
+          Couldn&apos;t save the new order — reverted. Try again.
+        </p>
+      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext
         items={items.map((t) => t.lift.id)}
         strategy={rectSortingStrategy}
       >
@@ -184,13 +198,14 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
           ))}
         </div>
       </SortableContext>
-      <DragOverlay>
-        {activeTile && (
-          <div className="rounded border border-accent bg-surface p-3 shadow-lg">
-            <TileContent tile={activeTile} />
-          </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay>
+          {activeTile && (
+            <div className="rounded border border-accent bg-surface p-3 shadow-lg">
+              <TileContent tile={activeTile} />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

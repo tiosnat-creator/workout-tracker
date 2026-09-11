@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 async function requireUserId() {
   const userId = await getCurrentUserId();
@@ -11,6 +12,23 @@ async function requireUserId() {
     redirect("/login");
   }
   return userId;
+}
+
+async function withUniqueNameError<T>(
+  run: () => Promise<T>,
+  message: string,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new Error(message);
+    }
+    throw error;
+  }
 }
 
 export async function createLift(formData: FormData) {
@@ -27,7 +45,10 @@ export async function createLift(formData: FormData) {
   });
   if (!category) throw new Error("Category not found.");
 
-  await prisma.lift.create({ data: { userId, name, categoryId } });
+  await withUniqueNameError(
+    () => prisma.lift.create({ data: { userId, name, categoryId } }),
+    `You already have a lift named "${name}".`,
+  );
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
 }
@@ -47,14 +68,19 @@ export async function updateLift(liftId: string, formData: FormData) {
   });
   if (!category) throw new Error("Category not found.");
 
-  await prisma.lift.updateMany({
-    where: { id: liftId, userId },
-    data: { name, categoryId, archived },
-  });
+  await withUniqueNameError(
+    () =>
+      prisma.lift.updateMany({
+        where: { id: liftId, userId },
+        data: { name, categoryId, archived },
+      }),
+    `You already have a lift named "${name}".`,
+  );
   revalidatePath("/admin/lifts");
   revalidatePath(`/admin/lifts/${liftId}`);
   revalidatePath("/lifts");
   revalidatePath(`/lifts/${liftId}`);
+  revalidatePath("/");
 }
 
 export async function createCategory(formData: FormData) {
@@ -63,7 +89,10 @@ export async function createCategory(formData: FormData) {
 
   if (!name) throw new Error("A category name is required.");
 
-  await prisma.category.create({ data: { userId, name } });
+  await withUniqueNameError(
+    () => prisma.category.create({ data: { userId, name } }),
+    `You already have a category named "${name}".`,
+  );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
 }
@@ -82,10 +111,14 @@ export async function renameCategory(categoryId: string, formData: FormData) {
     throw new Error("The Uncategorized category can't be renamed.");
   }
 
-  await prisma.category.update({ where: { id: categoryId }, data: { name } });
+  await withUniqueNameError(
+    () => prisma.category.update({ where: { id: categoryId }, data: { name } }),
+    `You already have a category named "${name}".`,
+  );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
+  revalidatePath("/");
 }
 
 export async function deleteCategory(categoryId: string) {
@@ -115,6 +148,7 @@ export async function deleteCategory(categoryId: string) {
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
+  revalidatePath("/");
 }
 
 export async function createSession(formData: FormData) {
