@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 function localToday() {
   const now = new Date();
@@ -11,12 +11,18 @@ function localToday() {
 }
 
 /**
- * A date input defaulting to "today" — computed client-side after mount,
- * not server-rendered. A server-computed default (e.g. via
- * `toISOString().slice(0, 10)`) reflects the server process's timezone, not
- * the viewer's, so it can be off by a day for anyone far enough east or west
- * of the server. Rendering empty on the server and filling in the browser's
- * own local date on mount avoids that entirely.
+ * A date input defaulting to "today". Renders a UTC-based guess on the
+ * server (so the form still works without JS, or before hydration), then
+ * corrects to the browser's own local date on mount — a server-computed
+ * default can be a day off for anyone far enough east or west of the
+ * server's timezone.
+ *
+ * Controlled (not just an imperative ref write to defaultValue), because
+ * React resets uncontrolled fields to their defaultValue after a Server
+ * Action completes; on a page that doesn't navigate away on submit
+ * (add-another-entry forms), that emptied the field and blocked the next
+ * submission behind `required`. Component state isn't touched by that
+ * reset, so it survives repeated submits in the same session.
  */
 export function DateInput({
   name,
@@ -29,22 +35,21 @@ export function DateInput({
   required?: boolean;
   className?: string;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
-    if (ref.current && !ref.current.value) {
-      ref.current.value = localToday();
-    }
+    setValue(localToday());
   }, []);
 
   return (
     <input
-      ref={ref}
       id={id}
       name={name}
       type="date"
       required={required}
       className={className}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
     />
   );
 }
