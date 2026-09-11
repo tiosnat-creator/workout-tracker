@@ -4,6 +4,7 @@ import { getLiftDetail } from "@/lib/data";
 import { addManualOneRepMax } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
 import { OneRepMaxChart } from "@/components/OneRepMaxChart";
+import { DateInput } from "@/components/DateInput";
 
 export default async function LiftDetailPage({
   params,
@@ -23,7 +24,6 @@ export default async function LiftDetailPage({
   }));
 
   const addOneRepMax = addManualOneRepMax.bind(null, lift.id);
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-col gap-8">
@@ -75,11 +75,9 @@ export default async function LiftDetailPage({
             <label htmlFor="date" className="mb-1 block text-xs font-medium">
               Date
             </label>
-            <input
+            <DateInput
               id="date"
               name="date"
-              type="date"
-              defaultValue={today}
               required
               className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
             />

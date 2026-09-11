@@ -5,6 +5,7 @@ import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
 import { BodyWeightChart } from "@/components/BodyWeightChart";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { DateInput } from "@/components/DateInput";
 
 export default async function BodyWeightPage() {
   const userId = await getCurrentUserId();
@@ -17,8 +18,6 @@ export default async function BodyWeightPage() {
   const chartPoints = [...entries]
     .reverse()
     .map((entry) => ({ date: entry.date.toISOString(), weight: entry.weight }));
-
-  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-col gap-8">
@@ -69,11 +68,9 @@ export default async function BodyWeightPage() {
             <label htmlFor="date" className="mb-1 block text-xs font-medium">
               Date
             </label>
-            <input
+            <DateInput
               id="date"
               name="date"
-              type="date"
-              defaultValue={today}
               required
               className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
             />

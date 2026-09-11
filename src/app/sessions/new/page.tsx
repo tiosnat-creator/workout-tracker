@@ -1,8 +1,7 @@
 import { createSession } from "@/lib/actions";
+import { DateInput } from "@/components/DateInput";
 
 export default function NewSessionPage() {
-  const today = new Date().toISOString().slice(0, 10);
-
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-4 text-lg font-bold tracking-tight uppercase">
@@ -13,11 +12,9 @@ export default function NewSessionPage() {
           <label htmlFor="date" className="mb-1 block text-sm font-medium">
             Date
           </label>
-          <input
+          <DateInput
             id="date"
             name="date"
-            type="date"
-            defaultValue={today}
             required
             className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
