@@ -4,7 +4,10 @@ import { isAuthDisabled } from "@/lib/auth-disabled";
 
 export async function getCurrentUserId(): Promise<string | null> {
   if (isAuthDisabled()) {
-    const user = await prisma.user.findFirst({ select: { id: true } });
+    const user = await prisma.user.findFirst({
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    });
     return user?.id ?? null;
   }
 

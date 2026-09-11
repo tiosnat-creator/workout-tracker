@@ -60,6 +60,7 @@ export async function createLift(formData: FormData) {
   );
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
+  revalidatePath("/");
   // Explicit redirect on success too, so a stale ?error= from an earlier
   // failed submission on this same URL doesn't linger on the next render.
   redirect("/admin/lifts");
@@ -110,6 +111,7 @@ export async function createCategory(formData: FormData) {
   );
   revalidatePath("/admin/categories");
   revalidatePath("/admin/lifts");
+  revalidatePath("/");
   redirect("/admin/categories");
 }
 

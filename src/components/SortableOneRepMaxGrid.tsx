@@ -123,8 +123,10 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   const saveSeqRef = useRef(0);
   // The last order actually confirmed persisted — as opposed to each drag's
   // own local "previous" snapshot, which may itself never have been saved
-  // if an earlier save in the same chain also failed.
+  // if an earlier save in the same chain also failed. Tracked alongside the
+  // seq that produced it, since saves can resolve out of request order.
   const lastConfirmedRef = useRef(tiles);
+  const lastConfirmedSeqRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -170,12 +172,14 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
 
     updateLiftDashboardOrder(next.map((t) => t.lift.id))
       .then(() => {
-        // Record this unconditionally, even if a later drag has since
-        // started (seq mismatch): a successful write is real persisted
-        // truth regardless of what's in flight after it, and a later
-        // save's own failure needs to revert to it, not to a stale value
-        // from before this one landed.
-        lastConfirmedRef.current = next;
+        // Saves can resolve out of request order. Only accept this result
+        // as the new floor if it's for a later drag than whatever is
+        // already recorded — otherwise an older save resolving last would
+        // clobber a newer save's already-recorded, still-accurate result.
+        if (mySeq > lastConfirmedSeqRef.current) {
+          lastConfirmedSeqRef.current = mySeq;
+          lastConfirmedRef.current = next;
+        }
       })
       .catch(() => {
         if (saveSeqRef.current !== mySeq) return;
