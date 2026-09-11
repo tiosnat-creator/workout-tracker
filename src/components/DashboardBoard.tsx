@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import {
   DndContext,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -27,9 +30,35 @@ export type CategoryGroup = {
   tiles: Tile[];
 };
 
+function GripIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+      <circle cx="5" cy="3" r="1.3" />
+      <circle cx="11" cy="3" r="1.3" />
+      <circle cx="5" cy="8" r="1.3" />
+      <circle cx="11" cy="8" r="1.3" />
+      <circle cx="5" cy="13" r="1.3" />
+      <circle cx="11" cy="13" r="1.3" />
+    </svg>
+  );
+}
+
+function CategoryHeader({ name }: { name: string }) {
+  return (
+    <h2 className="text-sm font-semibold text-muted uppercase">{name}</h2>
+  );
+}
+
 function CategorySection({ group }: { group: CategoryGroup }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } =
-    useSortable({ id: group.category.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: group.category.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -47,30 +76,32 @@ function CategorySection({ group }: { group: CategoryGroup }) {
           {...attributes}
           {...listeners}
         >
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-            <circle cx="5" cy="3" r="1.3" />
-            <circle cx="11" cy="3" r="1.3" />
-            <circle cx="5" cy="8" r="1.3" />
-            <circle cx="11" cy="8" r="1.3" />
-            <circle cx="5" cy="13" r="1.3" />
-            <circle cx="11" cy="13" r="1.3" />
-          </svg>
+          <GripIcon />
         </button>
-        <h2 className="text-sm font-semibold text-muted uppercase">
-          {group.category.name}
-        </h2>
+        <CategoryHeader name={group.category.name} />
       </div>
-      <CategoryTileGrid tiles={group.tiles} />
+      {isDragging ? (
+        // Placeholder left behind in the list; the actual dragged section
+        // renders in the DragOverlay below so it can float freely without
+        // fighting this element's own layout transform on drop (the same
+        // fix applied to individual tiles).
+        <div className="invisible">
+          <CategoryTileGrid tiles={group.tiles} />
+        </div>
+      ) : (
+        <CategoryTileGrid tiles={group.tiles} />
+      )}
     </section>
   );
 }
 
 export function DashboardBoard({ groups: initialGroups }: { groups: CategoryGroup[] }) {
-  const { items: groups, reorder } = useOptimisticOrder(
+  const { items: groups, reorder, saveError } = useOptimisticOrder(
     initialGroups,
     (group) => group.category.id,
     updateCategoryDashboardOrder,
   );
+  const [activeGroup, setActiveGroup] = useState<CategoryGroup | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -81,7 +112,13 @@ export function DashboardBoard({ groups: initialGroups }: { groups: CategoryGrou
     }),
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    const group = groups.find((g) => g.category.id === event.active.id) ?? null;
+    setActiveGroup(group);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveGroup(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -91,21 +128,40 @@ export function DashboardBoard({ groups: initialGroups }: { groups: CategoryGrou
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={groups.map((g) => g.category.id)}
-        strategy={verticalListSortingStrategy}
+    <div className="flex flex-col gap-2">
+      {saveError && (
+        <p className="text-xs text-red-600">
+          Couldn&apos;t save the new category order — reverted. Try again.
+        </p>
+      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveGroup(null)}
       >
-        <div className="flex flex-col gap-6">
-          {groups.map((group) => (
-            <CategorySection key={group.category.id} group={group} />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+        <SortableContext
+          items={groups.map((g) => g.category.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-6">
+            {groups.map((group) => (
+              <CategorySection key={group.category.id} group={group} />
+            ))}
+          </div>
+        </SortableContext>
+        <DragOverlay>
+          {activeGroup && (
+            <div className="flex items-center gap-2 rounded border border-accent bg-surface px-3 py-2 shadow-lg">
+              <span className="text-muted">
+                <GripIcon />
+              </span>
+              <CategoryHeader name={activeGroup.category.name} />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

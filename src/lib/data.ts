@@ -100,7 +100,18 @@ export async function getCurrentOneRepMaxes(userId: string) {
       return { lift, current: bestOneRepMax(points) };
     }),
   );
-  results.sort((a, b) => a.lift.dashboardOrder - b.lift.dashboardOrder);
+  // Lift.dashboardOrder is only unique *within* a category (each category's
+  // tile grid re-indexes its own lifts independently), so flat consumers of
+  // this list — the calculator's lift dropdown, most notably — need the
+  // category's own order as the primary key, not just the lift's.
+  results.sort((a, b) => {
+    const categoryDiff = a.lift.category.dashboardOrder - b.lift.category.dashboardOrder;
+    if (categoryDiff !== 0) return categoryDiff;
+    const categoryCreatedDiff =
+      a.lift.category.createdAt.getTime() - b.lift.category.createdAt.getTime();
+    if (categoryCreatedDiff !== 0) return categoryCreatedDiff;
+    return a.lift.dashboardOrder - b.lift.dashboardOrder;
+  });
   return results;
 }
 
@@ -108,7 +119,7 @@ export async function getDashboardBoard(userId: string) {
   const [categories, oneRepMaxes] = await Promise.all([
     prisma.category.findMany({
       where: { userId },
-      orderBy: { dashboardOrder: "asc" },
+      orderBy: [{ dashboardOrder: "asc" }, { createdAt: "asc" }],
     }),
     getCurrentOneRepMaxes(userId),
   ]);
