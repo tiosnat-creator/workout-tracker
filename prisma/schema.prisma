@@ -16,6 +16,7 @@ model User {
   categories   Category[]
   sessions     Session[]
   oneRepMaxes  OneRepMaxEntry[]
+  bodyWeights  BodyWeightEntry[]
 }
 
 model Category {
@@ -76,6 +77,16 @@ model OneRepMaxEntry {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   liftId    String
   lift      Lift     @relation(fields: [liftId], references: [id])
+  weight    Float
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model BodyWeightEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   weight    Float
   date      DateTime
   notes     String?

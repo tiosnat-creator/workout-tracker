@@ -155,3 +155,17 @@ export async function getSessionDetail(sessionId: string, userId: string) {
     },
   });
 }
+
+export async function getBodyWeightEntries(userId: string) {
+  return prisma.bodyWeightEntry.findMany({
+    where: { userId },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+  });
+}
+
+export async function getCurrentBodyWeight(userId: string) {
+  return prisma.bodyWeightEntry.findFirst({
+    where: { userId },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+  });
+}

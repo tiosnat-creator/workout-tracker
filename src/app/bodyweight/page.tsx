@@ -1,42 +1,35 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
-import { getLiftDetail } from "@/lib/data";
-import { addManualOneRepMax } from "@/lib/actions";
+import { getBodyWeightEntries, getCurrentBodyWeight } from "@/lib/data";
+import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
-import { OneRepMaxChart } from "@/components/OneRepMaxChart";
+import { BodyWeightChart } from "@/components/BodyWeightChart";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { DateInput } from "@/components/DateInput";
 
-export default async function LiftDetailPage({
-  params,
-}: PageProps<"/lifts/[id]">) {
-  const { id } = await params;
+export default async function BodyWeightPage() {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
-  const detail = await getLiftDetail(id, userId);
-  if (!detail) notFound();
-
-  const { lift, points, current, recentSets, manualEntries } = detail;
-  const chartPoints = points.map((p) => ({
-    date: p.date.toISOString(),
-    weight: p.weight,
-    source: p.source,
-  }));
-
-  const addOneRepMax = addManualOneRepMax.bind(null, lift.id);
+  const [entries, current] = await Promise.all([
+    getBodyWeightEntries(userId),
+    getCurrentBodyWeight(userId),
+  ]);
+  const chartPoints = [...entries]
+    .reverse()
+    .map((entry) => ({ date: entry.date.toISOString(), weight: entry.weight }));
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <p className="text-xs text-muted">{lift.category.name}</p>
         <h1 className="text-lg font-bold tracking-tight uppercase">
-          {lift.name}
+          Body Weight
         </h1>
         {current && (
           <p className="mt-1 text-3xl font-bold">
             {formatWeight(current.weight)}
             <span className="ml-2 text-sm font-normal text-muted">
-              current 1RM
+              as of {formatDate(current.date)}
             </span>
           </p>
         )}
@@ -46,15 +39,15 @@ export default async function LiftDetailPage({
         <h2 className="mb-2 text-sm font-semibold text-muted uppercase">
           Progress
         </h2>
-        <OneRepMaxChart points={chartPoints} />
+        <BodyWeightChart points={chartPoints} />
       </section>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-muted uppercase">
-          Add manual 1RM test
+          Add entry
         </h2>
         <form
-          action={addOneRepMax}
+          action={addBodyWeightEntry}
           className="flex flex-col gap-3 rounded border border-border bg-surface p-3 sm:flex-row sm:items-end"
         >
           <div className="w-28">
@@ -65,7 +58,7 @@ export default async function LiftDetailPage({
               id="weight"
               name="weight"
               type="number"
-              step="0.5"
+              step="0.1"
               min="0"
               required
               className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
@@ -99,39 +92,36 @@ export default async function LiftDetailPage({
             Add
           </button>
         </form>
-
-        {manualEntries.length > 0 && (
-          <ul className="mt-3 flex flex-col gap-1">
-            {manualEntries.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex justify-between text-sm text-muted"
-              >
-                <span>{formatDate(entry.date)}</span>
-                <span>{formatWeight(entry.weight)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-muted uppercase">
-          Recent sets
+          History
         </h2>
-        {recentSets.length === 0 ? (
-          <p className="text-sm text-muted">No sets logged for this lift yet.</p>
+        {entries.length === 0 ? (
+          <p className="text-sm text-muted">No entries logged yet.</p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {recentSets.map((set) => (
+          <ul className="flex flex-col gap-2">
+            {entries.map((entry) => (
               <li
-                key={set.id}
-                className="flex justify-between text-sm text-muted"
+                key={entry.id}
+                className="flex items-center justify-between gap-2 rounded border border-border bg-surface px-3 py-2"
               >
-                <span>{formatDate(set.session.date)}</span>
-                <span>
-                  {formatWeight(set.weight)} × {set.reps}
-                </span>
+                <div>
+                  <p className="text-sm font-medium">
+                    {formatWeight(entry.weight)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {formatDate(entry.date)}
+                    {entry.notes ? ` · ${entry.notes}` : ""}
+                  </p>
+                </div>
+                <ConfirmSubmitButton
+                  action={deleteBodyWeightEntry.bind(null, entry.id)}
+                  confirmMessage={`Delete the ${formatWeight(entry.weight)} entry from ${formatDate(entry.date)}?`}
+                  label="Delete"
+                  className="shrink-0 text-xs text-muted hover:text-red-600"
+                />
               </li>
             ))}
           </ul>

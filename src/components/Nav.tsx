@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/sessions", label: "Sessions" },
   { href: "/lifts", label: "Lifts" },
+  { href: "/bodyweight", label: "Body Weight" },
   { href: "/calculator", label: "Calculator" },
   { href: "/admin", label: "Admin" },
 ];
