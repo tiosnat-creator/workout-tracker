@@ -127,6 +127,10 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
   // seq that produced it, since saves can resolve out of request order.
   const lastConfirmedRef = useRef(tiles);
   const lastConfirmedSeqRef = useRef(0);
+  // The seq of whatever order `items` currently shows, so a save that
+  // resolves out of order — success or failure — can tell whether its
+  // result is newer than what's on screen right now.
+  const displayedSeqRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -161,33 +165,42 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
     const newIndex = previous.findIndex((t) => t.lift.id === over.id);
     const next = arrayMove(previous, oldIndex, newIndex);
 
-    setItems(next);
-    setSaveError(false);
-
-    // If a later drag starts before this save settles, only that later
-    // save's own outcome should be allowed to revert the grid — otherwise
-    // this save rejecting after a subsequent one already succeeded would
-    // wipe out the newer, already-persisted order.
     const mySeq = ++saveSeqRef.current;
+    setItems(next);
+    displayedSeqRef.current = mySeq;
+    setSaveError(false);
 
     updateLiftDashboardOrder(next.map((t) => t.lift.id))
       .then(() => {
         // Saves can resolve out of request order. Only accept this result
-        // as the new floor if it's for a later drag than whatever is
+        // as the new revert-floor if it's for a later drag than whatever is
         // already recorded — otherwise an older save resolving last would
         // clobber a newer save's already-recorded, still-accurate result.
         if (mySeq > lastConfirmedSeqRef.current) {
           lastConfirmedSeqRef.current = mySeq;
           lastConfirmedRef.current = next;
         }
+        // A late-arriving success can land after an in-between drag's own
+        // failure already reverted the visible grid to a stale order —
+        // sync it forward if this confirmed result is newer than what's
+        // currently shown.
+        if (mySeq > displayedSeqRef.current) {
+          setItems(next);
+          displayedSeqRef.current = mySeq;
+          setSaveError(false);
+        }
       })
       .catch(() => {
-        if (saveSeqRef.current !== mySeq) return;
+        // Only revert if nothing newer is currently on screen — an older
+        // save failing after a newer one already displayed (successfully
+        // or not) shouldn't clobber it.
+        if (mySeq !== displayedSeqRef.current) return;
         // Revert to the last order actually confirmed persisted, not to
         // `previous` — if an earlier save in this chain also failed,
         // `previous` was never saved either and reverting to it would show
         // an order the database never held.
         setItems(lastConfirmedRef.current);
+        displayedSeqRef.current = lastConfirmedSeqRef.current;
         setSaveError(true);
       });
   }
