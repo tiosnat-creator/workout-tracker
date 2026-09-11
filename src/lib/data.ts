@@ -159,14 +159,13 @@ export async function getSessionDetail(sessionId: string, userId: string) {
 export async function getBodyWeightEntries(userId: string) {
   return prisma.bodyWeightEntry.findMany({
     where: { userId },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
 }
 
 export async function getCurrentBodyWeight(userId: string) {
-  const latest = await prisma.bodyWeightEntry.findFirst({
+  return prisma.bodyWeightEntry.findFirst({
     where: { userId },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
-  return latest;
 }

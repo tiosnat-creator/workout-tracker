@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
-import { getBodyWeightEntries } from "@/lib/data";
+import { getBodyWeightEntries, getCurrentBodyWeight } from "@/lib/data";
 import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
 import { BodyWeightChart } from "@/components/BodyWeightChart";
@@ -10,8 +10,10 @@ export default async function BodyWeightPage() {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
-  const entries = await getBodyWeightEntries(userId);
-  const current = entries[0] ?? null;
+  const [entries, current] = await Promise.all([
+    getBodyWeightEntries(userId),
+    getCurrentBodyWeight(userId),
+  ]);
   const chartPoints = [...entries]
     .reverse()
     .map((entry) => ({ date: entry.date.toISOString(), weight: entry.weight }));

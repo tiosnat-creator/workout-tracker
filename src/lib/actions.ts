@@ -300,13 +300,14 @@ export async function addBodyWeightEntry(formData: FormData) {
   const weight = Number(formData.get("weight"));
   const dateValue = String(formData.get("date") ?? "");
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const date = new Date(dateValue);
 
-  if (!Number.isFinite(weight) || !dateValue) {
-    throw new Error("A weight and date are required.");
+  if (!(weight > 0) || Number.isNaN(date.getTime())) {
+    throw new Error("A positive weight and a valid date are required.");
   }
 
   await prisma.bodyWeightEntry.create({
-    data: { userId, weight, date: new Date(dateValue), notes },
+    data: { userId, weight, date, notes },
   });
 
   revalidatePath("/bodyweight");
