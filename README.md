@@ -24,7 +24,11 @@ automatically.
 
 The app itself resolves "the current user" as the single account
 `prisma/seed.ts` maintains at `SEED_USER_EMAIL` — there's exactly one
-tenant, and nothing distinguishes requests beyond the HTTP gate.
+tenant, and nothing distinguishes requests beyond the HTTP gate. Don't
+change `SEED_USER_EMAIL` on an environment with existing data: the seed
+upserts by email, so a new value creates a second, empty account and the
+app starts serving that one — the original account's lifts/sessions/body
+weight aren't deleted, just inaccessible until you change it back.
 
 ## Local development
 

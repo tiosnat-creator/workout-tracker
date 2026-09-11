@@ -13,13 +13,11 @@ import { prisma } from "@/lib/prisma";
 // repeatedly for a value that never changes within a request.
 export const getCurrentUserId = cache(async (): Promise<string | null> => {
   const email = process.env.SEED_USER_EMAIL;
+  if (!email) return null;
 
-  const user = email
-    ? await prisma.user.findUnique({ where: { email }, select: { id: true } })
-    : await prisma.user.findFirst({
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
-      });
-
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
   return user?.id ?? null;
 });

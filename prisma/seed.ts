@@ -33,9 +33,11 @@ async function main() {
 
   // No password: there's no login to check it against anymore (access is
   // gated at the HTTP layer instead). Kept as an identifying email only.
+  // Clears passwordHash on update too, so a hash from before this change
+  // doesn't sit in the database indefinitely.
   const user = await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: { passwordHash: null },
     create: { email },
   });
 
