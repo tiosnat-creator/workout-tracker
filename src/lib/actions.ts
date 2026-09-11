@@ -293,3 +293,33 @@ export async function addManualOneRepMax(liftId: string, formData: FormData) {
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
 }
+
+export async function addBodyWeightEntry(formData: FormData) {
+  const userId = await requireUserId();
+
+  const weight = Number(formData.get("weight"));
+  const dateValue = String(formData.get("date") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!Number.isFinite(weight) || !dateValue) {
+    throw new Error("A weight and date are required.");
+  }
+
+  await prisma.bodyWeightEntry.create({
+    data: { userId, weight, date: new Date(dateValue), notes },
+  });
+
+  revalidatePath("/bodyweight");
+}
+
+export async function deleteBodyWeightEntry(entryId: string) {
+  const userId = await requireUserId();
+
+  const entry = await prisma.bodyWeightEntry.findFirst({
+    where: { id: entryId, userId },
+  });
+  if (!entry) throw new Error("Entry not found.");
+
+  await prisma.bodyWeightEntry.delete({ where: { id: entryId } });
+  revalidatePath("/bodyweight");
+}
