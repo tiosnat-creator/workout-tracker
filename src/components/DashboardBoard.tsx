@@ -80,17 +80,17 @@ function CategorySection({ group }: { group: CategoryGroup }) {
         </button>
         <CategoryHeader name={group.category.name} />
       </div>
-      {isDragging ? (
-        // Placeholder left behind in the list; the actual dragged section
-        // renders in the DragOverlay below so it can float freely without
-        // fighting this element's own layout transform on drop (the same
-        // fix applied to individual tiles).
-        <div className="invisible">
-          <CategoryTileGrid tiles={group.tiles} />
-        </div>
-      ) : (
+      {/* Same element regardless of isDragging — CategoryTileGrid holds its
+          own reorder state via useOptimisticOrder, so branching into two
+          different tree positions here would remount it (and lose any
+          in-progress or just-saved tile order) every time a category drag
+          starts or ends. Only the wrapper's visibility toggles; the actual
+          dragged section renders in the DragOverlay below so it can float
+          freely without fighting this element's own layout transform on
+          drop (the same fix applied to individual tiles). */}
+      <div className={isDragging ? "invisible" : undefined}>
         <CategoryTileGrid tiles={group.tiles} />
-      )}
+      </div>
     </section>
   );
 }
