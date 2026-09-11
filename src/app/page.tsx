@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
-import { getCurrentOneRepMaxes, getSessions } from "@/lib/data";
+import { getDashboardBoard, getSessions } from "@/lib/data";
 import { formatDate } from "@/lib/format";
-import { SortableOneRepMaxGrid } from "@/components/SortableOneRepMaxGrid";
+import { DashboardBoard } from "@/components/DashboardBoard";
 
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
-  const [oneRepMaxes, sessions] = await Promise.all([
-    getCurrentOneRepMaxes(userId),
+  const [groups, sessions] = await Promise.all([
+    getDashboardBoard(userId),
     getSessions(userId),
   ]);
 
@@ -35,11 +35,13 @@ export default async function DashboardPage() {
           <h2 className="text-sm font-semibold text-muted uppercase">
             Current 1RMs
           </h2>
-          {oneRepMaxes.length > 0 && (
-            <p className="text-xs text-muted">Drag tiles to reorder</p>
+          {groups.length > 0 && (
+            <p className="text-xs text-muted">
+              Drag categories or tiles to reorder
+            </p>
           )}
         </div>
-        {oneRepMaxes.length === 0 ? (
+        {groups.length === 0 ? (
           <p className="text-sm text-muted">
             No lifts yet.{" "}
             <Link href="/admin/lifts" className="text-accent underline">
@@ -48,7 +50,7 @@ export default async function DashboardPage() {
             .
           </p>
         ) : (
-          <SortableOneRepMaxGrid tiles={oneRepMaxes} />
+          <DashboardBoard groups={groups} />
         )}
       </section>
 

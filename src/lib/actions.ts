@@ -257,6 +257,21 @@ export async function updateLiftDashboardOrder(orderedLiftIds: string[]) {
   revalidatePath("/");
 }
 
+export async function updateCategoryDashboardOrder(orderedCategoryIds: string[]) {
+  const userId = await requireUserId();
+
+  await prisma.$transaction(
+    orderedCategoryIds.map((categoryId, index) =>
+      prisma.category.updateMany({
+        where: { id: categoryId, userId },
+        data: { dashboardOrder: index },
+      }),
+    ),
+  );
+
+  revalidatePath("/");
+}
+
 export async function addManualOneRepMax(liftId: string, formData: FormData) {
   const userId = await requireUserId();
 

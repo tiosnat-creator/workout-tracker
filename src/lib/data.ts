@@ -104,6 +104,30 @@ export async function getCurrentOneRepMaxes(userId: string) {
   return results;
 }
 
+export async function getDashboardBoard(userId: string) {
+  const [categories, oneRepMaxes] = await Promise.all([
+    prisma.category.findMany({
+      where: { userId },
+      orderBy: { dashboardOrder: "asc" },
+    }),
+    getCurrentOneRepMaxes(userId),
+  ]);
+
+  const tilesByCategory = new Map<string, typeof oneRepMaxes>();
+  for (const tile of oneRepMaxes) {
+    const list = tilesByCategory.get(tile.lift.categoryId) ?? [];
+    list.push(tile);
+    tilesByCategory.set(tile.lift.categoryId, list);
+  }
+
+  return categories
+    .map((category) => ({
+      category,
+      tiles: tilesByCategory.get(category.id) ?? [],
+    }))
+    .filter((group) => group.tiles.length > 0);
+}
+
 export async function getSessions(userId: string) {
   return prisma.session.findMany({
     where: { userId },
