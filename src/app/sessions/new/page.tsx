@@ -1,7 +1,12 @@
+import { redirect } from "next/navigation";
+import { getCurrentUserId } from "@/lib/current-user";
 import { createSession } from "@/lib/actions";
 import { DateInput } from "@/components/DateInput";
 
-export default function NewSessionPage() {
+export default async function NewSessionPage() {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
+
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-4 text-lg font-bold tracking-tight uppercase">
