@@ -24,6 +24,7 @@ model Category {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   isUncategorized Boolean  @default(false)
+  dashboardOrder  Int      @default(0)
   createdAt       DateTime @default(now())
   lifts           Lift[]
 

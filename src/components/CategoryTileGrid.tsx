@@ -23,9 +23,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { updateLiftDashboardOrder } from "@/lib/actions";
 import { formatWeight } from "@/lib/format";
+import { useOptimisticOrder } from "@/hooks/useOptimisticOrder";
 import type { Category, Lift } from "@prisma/client";
 
-type Tile = {
+export type Tile = {
   lift: Lift & { category: Category };
   current: { weight: number } | null;
 };
@@ -34,7 +35,6 @@ function TileContent({ tile }: { tile: Tile }) {
   const { lift, current } = tile;
   return (
     <>
-      <p className="text-xs text-muted">{lift.category.name}</p>
       <p className="text-sm font-medium">{lift.name}</p>
       <p className="mt-1 text-lg font-bold">
         {current ? formatWeight(current.weight) : "—"}
@@ -115,22 +115,14 @@ function SortableTile({
   );
 }
 
-export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
-  const [items, setItems] = useState(tiles);
+export function CategoryTileGrid({ tiles }: { tiles: Tile[] }) {
+  const { items, reorder, saveError } = useOptimisticOrder(
+    tiles,
+    (tile) => tile.lift.id,
+    updateLiftDashboardOrder,
+  );
   const [activeTile, setActiveTile] = useState<Tile | null>(null);
-  const [saveError, setSaveError] = useState(false);
   const wasDraggedRef = useRef(false);
-  const saveSeqRef = useRef(0);
-  // The last order actually confirmed persisted — as opposed to each drag's
-  // own local "previous" snapshot, which may itself never have been saved
-  // if an earlier save in the same chain also failed. Tracked alongside the
-  // seq that produced it, since saves can resolve out of request order.
-  const lastConfirmedRef = useRef(tiles);
-  const lastConfirmedSeqRef = useRef(0);
-  // The seq of whatever order `items` currently shows, so a save that
-  // resolves out of order — success or failure — can tell whether its
-  // result is newer than what's on screen right now.
-  const displayedSeqRef = useRef(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -160,49 +152,9 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
 
     if (!over || active.id === over.id) return;
 
-    const previous = items;
-    const oldIndex = previous.findIndex((t) => t.lift.id === active.id);
-    const newIndex = previous.findIndex((t) => t.lift.id === over.id);
-    const next = arrayMove(previous, oldIndex, newIndex);
-
-    const mySeq = ++saveSeqRef.current;
-    setItems(next);
-    displayedSeqRef.current = mySeq;
-    setSaveError(false);
-
-    updateLiftDashboardOrder(next.map((t) => t.lift.id))
-      .then(() => {
-        // Saves can resolve out of request order. Only accept this result
-        // as the new revert-floor if it's for a later drag than whatever is
-        // already recorded — otherwise an older save resolving last would
-        // clobber a newer save's already-recorded, still-accurate result.
-        if (mySeq > lastConfirmedSeqRef.current) {
-          lastConfirmedSeqRef.current = mySeq;
-          lastConfirmedRef.current = next;
-        }
-        // A late-arriving success can land after an in-between drag's own
-        // failure already reverted the visible grid to a stale order —
-        // sync it forward if this confirmed result is newer than what's
-        // currently shown.
-        if (mySeq > displayedSeqRef.current) {
-          setItems(next);
-          displayedSeqRef.current = mySeq;
-          setSaveError(false);
-        }
-      })
-      .catch(() => {
-        // Only revert if nothing newer is currently on screen — an older
-        // save failing after a newer one already displayed (successfully
-        // or not) shouldn't clobber it.
-        if (mySeq !== displayedSeqRef.current) return;
-        // Revert to the last order actually confirmed persisted, not to
-        // `previous` — if an earlier save in this chain also failed,
-        // `previous` was never saved either and reverting to it would show
-        // an order the database never held.
-        setItems(lastConfirmedRef.current);
-        displayedSeqRef.current = lastConfirmedSeqRef.current;
-        setSaveError(true);
-      });
+    const oldIndex = items.findIndex((t) => t.lift.id === active.id);
+    const newIndex = items.findIndex((t) => t.lift.id === over.id);
+    reorder(arrayMove(items, oldIndex, newIndex));
   }
 
   function handleDragCancel() {
@@ -227,19 +179,19 @@ export function SortableOneRepMaxGrid({ tiles }: { tiles: Tile[] }) {
         onDragCancel={handleDragCancel}
       >
         <SortableContext
-        items={items.map((t) => t.lift.id)}
-        strategy={rectSortingStrategy}
-      >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {items.map((tile) => (
-            <SortableTile
-              key={tile.lift.id}
-              tile={tile}
-              wasDraggedRef={wasDraggedRef}
-            />
-          ))}
-        </div>
-      </SortableContext>
+          items={items.map((t) => t.lift.id)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {items.map((tile) => (
+              <SortableTile
+                key={tile.lift.id}
+                tile={tile}
+                wasDraggedRef={wasDraggedRef}
+              />
+            ))}
+          </div>
+        </SortableContext>
         <DragOverlay>
           {activeTile && (
             <div className="rounded border border-accent bg-surface p-3 shadow-lg">
