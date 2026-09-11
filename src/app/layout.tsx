@@ -4,6 +4,12 @@ import "./globals.css";
 import { getCurrentUserId } from "@/lib/current-user";
 import { Nav } from "@/components/Nav";
 
+// Every page reads live data on every request; nothing here is safe to
+// prerender at build time (there's no database available then). Without
+// NextAuth's cookies()/headers() calls implicitly forcing this, Next has no
+// other signal that the app can't be statically generated.
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

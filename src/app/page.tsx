@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getDashboardBoard, getSessions } from "@/lib/data";
 import { formatDate } from "@/lib/format";
@@ -7,7 +7,7 @@ import { DashboardBoard } from "@/components/DashboardBoard";
 
 export default async function DashboardPage() {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const [groups, sessions] = await Promise.all([
     getDashboardBoard(userId),

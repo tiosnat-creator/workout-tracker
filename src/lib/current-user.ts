@@ -1,16 +1,12 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isAuthDisabled } from "@/lib/auth-disabled";
 
+// No per-user login anymore — access is gated entirely at the HTTP layer
+// (Upsun's basic-auth site gate). This app is single-tenant, so "current
+// user" is just the one seeded account.
 export async function getCurrentUserId(): Promise<string | null> {
-  if (isAuthDisabled()) {
-    const user = await prisma.user.findFirst({
-      select: { id: true },
-      orderBy: { createdAt: "asc" },
-    });
-    return user?.id ?? null;
-  }
-
-  const session = await auth();
-  return session?.user?.id ?? null;
+  const user = await prisma.user.findFirst({
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return user?.id ?? null;
 }

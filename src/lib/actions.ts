@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
@@ -10,7 +10,7 @@ import type { ActionErrorCode } from "@/lib/action-errors";
 async function requireUserId() {
   const userId = await getCurrentUserId();
   if (!userId) {
-    redirect("/login");
+    notFound();
   }
   return userId;
 }

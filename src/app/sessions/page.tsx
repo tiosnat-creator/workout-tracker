@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getSessions } from "@/lib/data";
 import { deleteSession } from "@/lib/actions";
@@ -8,7 +8,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export default async function SessionsPage() {
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
   const sessions = await getSessions(userId);
 
   return (

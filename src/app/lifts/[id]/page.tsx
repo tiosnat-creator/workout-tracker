@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCurrentUserId } from "@/lib/current-user";
 import { getLiftDetail } from "@/lib/data";
 import { addManualOneRepMax } from "@/lib/actions";
@@ -11,7 +11,7 @@ export default async function LiftDetailPage({
 }: PageProps<"/lifts/[id]">) {
   const { id } = await params;
   const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  if (!userId) notFound();
 
   const detail = await getLiftDetail(id, userId);
   if (!detail) notFound();
