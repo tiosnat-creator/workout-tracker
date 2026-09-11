@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAuthDisabled } from "@/lib/auth-disabled";
 
 const PUBLIC_PATHS = ["/login"];
 
 export default async function proxy(request: NextRequest) {
+  if (isAuthDisabled()) {
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 

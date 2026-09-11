@@ -1,26 +1,28 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, LiftCategory } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const DEFAULT_LIFTS: { name: string; category: LiftCategory }[] = [
-  { name: "Snatch", category: LiftCategory.SNATCH },
-  { name: "Power Snatch", category: LiftCategory.SNATCH },
-  { name: "Hang Snatch", category: LiftCategory.SNATCH },
-  { name: "Clean and Jerk", category: LiftCategory.CLEAN_AND_JERK },
-  { name: "Power Clean", category: LiftCategory.CLEAN_AND_JERK },
-  { name: "Clean", category: LiftCategory.CLEAN_AND_JERK },
-  { name: "Jerk", category: LiftCategory.CLEAN_AND_JERK },
-  { name: "Back Squat", category: LiftCategory.SQUAT },
-  { name: "Front Squat", category: LiftCategory.SQUAT },
-  { name: "Overhead Squat", category: LiftCategory.SQUAT },
-  { name: "Snatch Pull", category: LiftCategory.PULL },
-  { name: "Clean Pull", category: LiftCategory.PULL },
-  { name: "Strict Press", category: LiftCategory.PRESS },
-  { name: "Push Press", category: LiftCategory.PRESS },
+const DEFAULT_CATEGORIES = ["Snatch", "Clean & Jerk", "Squat", "Pull", "Press"];
+
+const DEFAULT_LIFTS: { name: string; category: string }[] = [
+  { name: "Snatch", category: "Snatch" },
+  { name: "Power Snatch", category: "Snatch" },
+  { name: "Hang Snatch", category: "Snatch" },
+  { name: "Clean and Jerk", category: "Clean & Jerk" },
+  { name: "Power Clean", category: "Clean & Jerk" },
+  { name: "Clean", category: "Clean & Jerk" },
+  { name: "Jerk", category: "Clean & Jerk" },
+  { name: "Back Squat", category: "Squat" },
+  { name: "Front Squat", category: "Squat" },
+  { name: "Overhead Squat", category: "Squat" },
+  { name: "Snatch Pull", category: "Pull" },
+  { name: "Clean Pull", category: "Pull" },
+  { name: "Strict Press", category: "Press" },
+  { name: "Push Press", category: "Press" },
 ];
 
 async function main() {
@@ -41,13 +43,44 @@ async function main() {
     create: { email, passwordHash },
   });
 
-  for (const lift of DEFAULT_LIFTS) {
-    await prisma.lift.upsert({
-      where: { userId_name: { userId: user.id, name: lift.name } },
-      update: {},
-      create: { userId: user.id, name: lift.name, category: lift.category },
-    });
+  // This deploy hook runs on every release. Only seed starter categories and
+  // lifts the first time a user shows up (zero categories) — otherwise a
+  // renamed or deleted default (e.g. "Squat" -> "Squats") would be silently
+  // re-created empty on the next deploy, fighting the user's own edits.
+  const existingCategoryCount = await prisma.category.count({
+    where: { userId: user.id },
+  });
+
+  if (existingCategoryCount > 0) {
+    console.log(`User ${user.email} already has categories — skipping default seed.`);
+    return;
   }
+
+  // All-or-nothing: if this dies partway (dropped connection, timeout), the
+  // count-based guard above must still see zero categories on the next
+  // deploy and retry the full seed, rather than being left half-seeded with
+  // categories but no lifts and no way to repair it.
+  await prisma.$transaction(async (tx) => {
+    await tx.category.create({
+      data: { userId: user.id, name: "Uncategorized", isUncategorized: true },
+    });
+
+    const categoryIdByName = new Map<string, string>();
+    for (const name of DEFAULT_CATEGORIES) {
+      const category = await tx.category.create({
+        data: { userId: user.id, name },
+      });
+      categoryIdByName.set(name, category.id);
+    }
+
+    for (const lift of DEFAULT_LIFTS) {
+      const categoryId = categoryIdByName.get(lift.category);
+      if (!categoryId) continue;
+      await tx.lift.create({
+        data: { userId: user.id, name: lift.name, categoryId },
+      });
+    }
+  });
 
   console.log(`Seeded user ${user.email} and ${DEFAULT_LIFTS.length} default lifts.`);
 }

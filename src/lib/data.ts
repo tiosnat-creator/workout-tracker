@@ -4,12 +4,32 @@ import { estimateOneRepMax, bestOneRepMax, type OneRepMaxPoint } from "@/lib/one
 export async function getLifts(userId: string, includeArchived = false) {
   return prisma.lift.findMany({
     where: { userId, ...(includeArchived ? {} : { archived: false }) },
-    orderBy: [{ category: "asc" }, { name: "asc" }],
+    include: { category: true },
+    orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
   });
 }
 
 export async function getLift(liftId: string, userId: string) {
-  return prisma.lift.findFirst({ where: { id: liftId, userId } });
+  return prisma.lift.findFirst({
+    where: { id: liftId, userId },
+    include: { category: true },
+  });
+}
+
+export async function getCategories(userId: string) {
+  return prisma.category.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function getCategoriesWithLiftCounts(userId: string) {
+  const categories = await prisma.category.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    include: { _count: { select: { lifts: true } } },
+  });
+  return categories;
 }
 
 async function oneRepMaxPointsForLift(liftId: string, userId: string) {
@@ -80,6 +100,7 @@ export async function getCurrentOneRepMaxes(userId: string) {
       return { lift, current: bestOneRepMax(points) };
     }),
   );
+  results.sort((a, b) => a.lift.dashboardOrder - b.lift.dashboardOrder);
   return results;
 }
 
