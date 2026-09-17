@@ -2,6 +2,7 @@
 // param. Never put free text there — only a known code from this catalog may
 // be rendered, so a crafted link can't spoof arbitrary app-styled text.
 const ACTION_ERROR_ENTRIES = [
+  ["login-unavailable", "Email sign-in is temporarily unavailable. Please try again later."],
   ["duplicate-lift-name", "You already have a lift with that name."],
   ["duplicate-category-name", "You already have a category with that name."],
   ["invalid-email", "Enter a valid email address."],
