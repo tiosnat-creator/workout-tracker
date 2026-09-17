@@ -119,7 +119,7 @@ test('invalid profile values are rejected on the server', () => {
   }
 });
 function signupAction(user) {
-  const state = { completed: false, weights: [], categories: 0, updates: [], transactions: 0 };
+  const state = { completed: false, weights: [], categories: 0, updates: [], transactions: 0, revalidated: [] };
   const tx = {
     user: { updateMany: async ({ where, data }) => {
       assert.equal(where.id, user.id); assert.equal(where.disabledAt, null);
@@ -130,7 +130,12 @@ function signupAction(user) {
     category: { upsert: async () => { state.categories++; } },
   };
   const actions = load('src/lib/signup-actions.ts', {
-    'next/navigation': { redirect }, '@/lib/session': { getSessionUser: async () => user },
+    'next/navigation': { redirect: path => {
+      if (path === '/') assert.deepEqual(state.revalidated.at(-1), ['/', 'layout']);
+      redirect(path);
+    } },
+    'next/cache': { revalidatePath: (path, type) => state.revalidated.push([path, type]) },
+    '@/lib/session': { getSessionUser: async () => user },
     '@/lib/signup-profile': profile,
     '@/lib/prisma': { prisma: { $transaction: async callback => { state.transactions++; return callback(tx); } } },
   });
@@ -169,4 +174,11 @@ test('unfinished signup cannot bypass onboarding through protected role helpers'
     await assert.rejects(roles[name](), /\/signup\/profile/);
   }
   assert.equal(await roles.getCurrentUserId(), null);
+});
+
+ test('successful onboarding refreshes the shared layout before navigation', async () => {
+  const { actions, state } = signupAction({ id: 'verified-user', onboardingCompletedAt: null });
+  await assert.rejects(actions.completeSignup({}, form(validProfile)), e => e.message === '/');
+  assert.deepEqual(state.revalidated, [['/', 'layout']]);
+  assert.equal(state.completed, true);
 });

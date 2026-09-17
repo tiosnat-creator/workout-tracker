@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
@@ -9,7 +10,10 @@ export async function completeSignup(_previous: ProfileState, formData: FormData
   // A verified email session is required; never accept a user ID from the form.
   const user = await getSessionUser();
   if (!user) redirect("/signup");
-  if (user.onboardingCompletedAt) redirect("/");
+  if (user.onboardingCompletedAt) {
+    revalidatePath("/", "layout");
+    redirect("/");
+  }
 
   const values = {
     username: String(formData.get("username") ?? ""),
@@ -35,5 +39,8 @@ export async function completeSignup(_previous: ProfileState, formData: FormData
       update: {},
     });
   });
+  // The shared layout hides navigation until onboarding is complete. Refresh
+  // that layout before redirecting so client navigation does not reuse it.
+  revalidatePath("/", "layout");
   redirect("/");
 }
