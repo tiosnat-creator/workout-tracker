@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getSessions } from "@/lib/data";
 import { deleteSession } from "@/lib/actions";
 import { formatDate } from "@/lib/format";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export default async function SessionsPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
   const sessions = await getSessions(userId);
 
   return (

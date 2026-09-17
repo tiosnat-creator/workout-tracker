@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getLifts } from "@/lib/data";
 
 export default async function LiftsPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
   const lifts = await getLifts(userId);
 
   const grouped = new Map<string, typeof lifts>();

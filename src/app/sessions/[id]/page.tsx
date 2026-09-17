@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getSessionDetail } from "@/lib/data";
 import { getLifts } from "@/lib/data";
 import { addSetEntry, deleteSetEntry } from "@/lib/actions";
@@ -9,8 +9,7 @@ export default async function SessionDetailPage({
   params,
 }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
 
   const [detail, lifts] = await Promise.all([
     getSessionDetail(id, userId),

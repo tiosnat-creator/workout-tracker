@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/session";
 
 const SECTIONS = [
   {
@@ -15,15 +15,32 @@ const SECTIONS = [
   },
 ];
 
+// Unlike /admin/lifts and /admin/categories (per-tenant data every MEMBER
+// manages for themselves), /admin/users is privileged site administration —
+// keep the section list built conditionally here, not just gated at the
+// /admin/users route, so the two concepts don't blur under one prefix.
+const USERS_SECTION = {
+  href: "/admin/users",
+  title: "Users",
+  description: "Manage accounts, roles, and access.",
+};
+
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const sections =
+    user.role === "OWNER" || user.role === "ADMIN"
+      ? [...SECTIONS, USERS_SECTION]
+      : SECTIONS;
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold tracking-tight uppercase">Admin</h1>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <Link
             key={section.href}
             href={section.href}

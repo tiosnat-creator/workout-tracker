@@ -1,11 +1,9 @@
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { createSession } from "@/lib/actions";
 import { DateInput } from "@/components/DateInput";
 
 export default async function NewSessionPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  await requireUserId();
 
   return (
     <div className="mx-auto max-w-sm">
