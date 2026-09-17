@@ -37,15 +37,29 @@ async function getRequestOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+// Purpose is chosen by the server action, never by a hidden form field.
 export async function requestMagicLink(formData: FormData) {
-  if (!isMagicLinkEmailConfigured()) redirect("/login?error=login-unavailable");
+  return issueMagicLink(formData, "LOGIN");
+}
+
+export async function requestSignupLink(formData: FormData) {
+  return issueMagicLink(formData, "SIGNUP");
+}
+
+async function issueMagicLink(formData: FormData, purpose: "LOGIN" | "SIGNUP") {
+  const entryPath = purpose === "SIGNUP" ? "/signup" : "/login";
+  if (!isMagicLinkEmailConfigured()) redirect(`${entryPath}?error=login-unavailable`);
   const emailInput = String(formData.get("email") ?? "").trim();
 
   if (!EMAIL_RE.test(emailInput)) {
-    redirect("/login?error=invalid-email");
+    redirect(`${entryPath}?error=invalid-email`);
   }
 
   const emailHash = hashEmail(emailInput);
+  const existing = await prisma.user.findUnique({ where: { emailHash } });
+  if (existing?.disabledAt || (purpose === "LOGIN" && !existing)) {
+    redirect(`${entryPath}?sent=1`);
+  }
   const requestIp = await getRequestIp();
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
@@ -76,13 +90,14 @@ export async function requestMagicLink(formData: FormData) {
   ) {
     // Same response as success — don't reveal rate limiting (or whether
     // the address has an account) to a potential abuser.
-    redirect("/login?sent=1");
+    redirect(`${entryPath}?sent=1`);
   }
 
   const token = randomBytes(32).toString("base64url");
 
   await prisma.magicLinkToken.create({
     data: {
+      purpose,
       tokenHash: hashToken(token),
       emailHash,
       emailCiphertext: encryptEmail(emailInput),
@@ -97,10 +112,10 @@ export async function requestMagicLink(formData: FormData) {
   } catch {
     // Failed delivery must not leave a usable token behind.
     await prisma.magicLinkToken.deleteMany({ where: { tokenHash: hashToken(token) } });
-    redirect("/login?error=login-unavailable");
+    redirect(`${entryPath}?error=login-unavailable`);
   }
 
-  redirect("/login?sent=1");
+  redirect(`${entryPath}?sent=1`);
 }
 
 export async function consumeMagicLink(token: string) {
@@ -114,12 +129,12 @@ export async function consumeMagicLink(token: string) {
     redirect("/login?error=invalid-link");
   }
 
-  // Mark consumed before touching the user row — single-use regardless of
-  // what happens next, so a replayed link never creates a second session.
-  await prisma.magicLinkToken.update({
-    where: { id: record.id },
+  // Claim once, including under concurrent confirmation requests.
+  const claimed = await prisma.magicLinkToken.updateMany({
+    where: { id: record.id, consumedAt: null, expiresAt: { gt: new Date() } },
     data: { consumedAt: new Date() },
   });
+  if (claimed.count !== 1) redirect("/login?error=invalid-link");
 
   let user = await prisma.user.findUnique({ where: { emailHash: record.emailHash } });
 
@@ -128,6 +143,7 @@ export async function consumeMagicLink(token: string) {
   }
 
   if (!user) {
+    if (record.purpose !== "SIGNUP") redirect("/signup?error=signup-required");
     try {
       user = await prisma.user.create({
         data: {
@@ -152,13 +168,15 @@ export async function consumeMagicLink(token: string) {
     }
   }
 
+  if (user.disabledAt) redirect("/login?error=account-disabled");
+
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
 
   await createUserSession(user.id);
-  redirect("/");
+  redirect(user.onboardingCompletedAt ? "/" : "/signup/profile");
 }
 
 export async function logout() {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requestMagicLink } from "@/lib/auth-actions";
 import { actionErrorMessage } from "@/lib/action-errors";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -12,11 +13,11 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-4 pt-12">
-      <h1 className="text-lg font-bold tracking-tight uppercase">Sign in</h1>
+      <h1 className="text-lg font-bold tracking-tight uppercase">Log in</h1>
       <ErrorBanner message={actionErrorMessage(errorCode)} />
       {sent ? (
         <p className="text-sm text-muted">
-          If that address can sign in, a link is on its way — check your
+          If that address has an account, a link is on its way — check your
           inbox. The link expires in 15 minutes and can only be used once.
         </p>
       ) : (
@@ -42,6 +43,7 @@ export default async function LoginPage({
           </button>
         </form>
       )}
+      <p className="text-sm text-muted">New to Lifting Log? <Link href="/signup" className="font-medium text-accent underline">Sign up</Link></p>
     </div>
   );
 }

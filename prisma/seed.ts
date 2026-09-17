@@ -1,29 +1,11 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { addStarterLifts } from "../src/lib/starter-lifts";
 import { encryptEmail, hashEmail } from "../src/lib/email-crypto";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
-
-const DEFAULT_CATEGORIES = ["Snatch", "Clean & Jerk", "Squat", "Pull", "Press"];
-
-const DEFAULT_LIFTS: { name: string; category: string }[] = [
-  { name: "Snatch", category: "Snatch" },
-  { name: "Power Snatch", category: "Snatch" },
-  { name: "Hang Snatch", category: "Snatch" },
-  { name: "Clean and Jerk", category: "Clean & Jerk" },
-  { name: "Power Clean", category: "Clean & Jerk" },
-  { name: "Clean", category: "Clean & Jerk" },
-  { name: "Jerk", category: "Clean & Jerk" },
-  { name: "Back Squat", category: "Squat" },
-  { name: "Front Squat", category: "Squat" },
-  { name: "Overhead Squat", category: "Squat" },
-  { name: "Snatch Pull", category: "Pull" },
-  { name: "Clean Pull", category: "Pull" },
-  { name: "Strict Press", category: "Press" },
-  { name: "Push Press", category: "Press" },
-];
 
 async function main() {
   const ownerEmail = process.env.OWNER_EMAIL;
@@ -50,14 +32,14 @@ async function main() {
     if (legacyUser) {
       user = await prisma.user.update({
         where: { id: legacyUser.id },
-        data: { emailHash, emailCiphertext, role: "OWNER", passwordHash: null },
+        data: { emailHash, emailCiphertext, role: "OWNER", passwordHash: null, onboardingCompletedAt: new Date() },
       });
     }
   }
 
   if (!user) {
     user = await prisma.user.create({
-      data: { emailHash, emailCiphertext, role: "OWNER" },
+      data: { emailHash, emailCiphertext, role: "OWNER", onboardingCompletedAt: new Date() },
     });
   } else if (user.role !== "OWNER") {
     user = await prisma.user.update({
@@ -88,29 +70,9 @@ async function main() {
   // count-based guard above must still see zero categories on the next
   // deploy and retry the full seed, rather than being left half-seeded with
   // categories but no lifts and no way to repair it.
-  await prisma.$transaction(async (tx) => {
-    await tx.category.create({
-      data: { userId: owner.id, name: "Uncategorized", isUncategorized: true },
-    });
+  await prisma.$transaction((tx) => addStarterLifts(tx, owner.id));
 
-    const categoryIdByName = new Map<string, string>();
-    for (const name of DEFAULT_CATEGORIES) {
-      const category = await tx.category.create({
-        data: { userId: owner.id, name },
-      });
-      categoryIdByName.set(name, category.id);
-    }
-
-    for (const lift of DEFAULT_LIFTS) {
-      const categoryId = categoryIdByName.get(lift.category);
-      if (!categoryId) continue;
-      await tx.lift.create({
-        data: { userId: owner.id, name: lift.name, categoryId },
-      });
-    }
-  });
-
-  console.log(`Seeded owner account and ${DEFAULT_LIFTS.length} default lifts.`);
+  console.log("Seeded owner account and starter lifts.");
 }
 
 main()

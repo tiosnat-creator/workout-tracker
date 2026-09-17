@@ -12,7 +12,7 @@ export function proxy(request: NextRequest) {
   // /login and /login/verify must stay reachable while signed out — they
   // ARE the sign-in flow. Server Actions post back to the route they're
   // used on, so this also covers requestMagicLink/consumeMagicLink.
-  if (pathname === "/login" || pathname.startsWith("/login/")) {
+  if (pathname === "/signup" || pathname === "/login" || pathname.startsWith("/login/")) {
     return NextResponse.next();
   }
 

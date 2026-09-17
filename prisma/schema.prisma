@@ -12,6 +12,16 @@ enum Role {
   MEMBER
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MagicLinkPurpose {
+  LOGIN
+  SIGNUP
+}
+
 model User {
   id     String @id @default(cuid())
   role   Role   @default(MEMBER)
@@ -31,6 +41,8 @@ model User {
   emailHash       String?   @unique
 
   name         String?
+  gender       Gender?
+  onboardingCompletedAt DateTime?
   disabledAt   DateTime?
   lastLoginAt  DateTime?
   createdAt    DateTime          @default(now())
@@ -47,6 +59,7 @@ model User {
 // only in the emailed URL. emailCiphertext/emailHash let a first-time
 // signup create the User from the token alone.
 model MagicLinkToken {
+  purpose         MagicLinkPurpose @default(LOGIN)
   id              String    @id @default(cuid())
   tokenHash       String    @unique
   emailHash       String

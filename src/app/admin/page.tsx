@@ -30,6 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (!user.onboardingCompletedAt) redirect("/signup/profile");
 
   const sections =
     user.role === "OWNER" || user.role === "ADMIN"
