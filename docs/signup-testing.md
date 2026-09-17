@@ -60,3 +60,11 @@ transpiled functions with mocked database/mail services: flow separation, both
 gender values, field validation, expired/used links, session ownership, onboarding
 gates, duplicate submissions, and the previous fail-closed mail protections.
 Run the manual scenarios against the preview to verify real email/database behavior.
+
+## Starter lifts
+
+New signups receive 14 starter lifts in Snatch, Clean & Jerk, Squat, Pull and
+Press, plus an Uncategorized fallback category. They belong to the new account.
+For an account created before this change with no lifts, open **Account → Add
+starter lifts**. Repeating the action does not duplicate the catalog or overwrite
+existing lift settings. This action does not copy another customer's training data.

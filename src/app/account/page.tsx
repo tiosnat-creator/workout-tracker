@@ -1,3 +1,4 @@
+import { initializeStarterLifts } from "@/lib/starter-lift-actions";
 import { requireUserId } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 import { decryptEmail } from "@/lib/email-crypto";
@@ -12,6 +13,8 @@ export default async function AccountPage() {
     where: { id: userId },
     select: { emailCiphertext: true, role: true, name: true, gender: true },
   });
+
+  const liftCount = await prisma.lift.count({ where: { userId } });
 
   const email = user.emailCiphertext ? decryptEmail(user.emailCiphertext) : null;
 
@@ -30,6 +33,12 @@ export default async function AccountPage() {
           <dd className="capitalize">{user.role.toLowerCase()}</dd>
         </div>
       </dl>
+      {liftCount === 0 && (
+        <form action={initializeStarterLifts} className="rounded border border-border p-4">
+          <p className="mb-3 text-sm text-muted">Start with 14 lifts across Snatch, Clean &amp; Jerk, Squat, Pull and Press.</p>
+          <button type="submit" className="rounded bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground">Add starter lifts</button>
+        </form>
+      )}
       <div className="flex flex-col gap-2">
         <form action={logout}>
           <button

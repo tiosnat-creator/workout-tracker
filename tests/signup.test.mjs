@@ -17,6 +17,7 @@ function load(file, mocks) {
 }
 const redirect = path => { throw Error(path); };
 const form = values => ({ get: name => values[name] ?? null });
+const starterLifts = load("src/lib/starter-lifts.ts", {});
 const profile = load('src/lib/signup-profile.ts', {});
 function auth({ user = null, record = null, configured = true } = {}) {
   const state = { user, record, sent: 0, sessions: 0, claims: 0, created: 0, issued: null };
@@ -119,7 +120,7 @@ test('invalid profile values are rejected on the server', () => {
   }
 });
 function signupAction(user) {
-  const state = { completed: false, weights: [], categories: 0, updates: [], transactions: 0, revalidated: [] };
+  const state = { completed: false, weights: [], categories: 0, lifts: [], updates: [], transactions: 0, revalidated: [] };
   const tx = {
     user: { updateMany: async ({ where, data }) => {
       assert.equal(where.id, user.id); assert.equal(where.disabledAt, null);
@@ -127,7 +128,8 @@ function signupAction(user) {
       state.completed = true; state.updates.push(data); return { count: 1 };
     } },
     bodyWeightEntry: { create: async ({ data }) => { state.weights.push(data); } },
-    category: { upsert: async () => { state.categories++; } },
+    category: { upsert: async ({ create }) => { state.categories++; return { id: create.name }; } },
+    lift: { upsert: async ({ create }) => { state.lifts.push(create); } },
   };
   const actions = load('src/lib/signup-actions.ts', {
     'next/navigation': { redirect: path => {
@@ -137,6 +139,7 @@ function signupAction(user) {
     'next/cache': { revalidatePath: (path, type) => state.revalidated.push([path, type]) },
     '@/lib/session': { getSessionUser: async () => user },
     '@/lib/signup-profile': profile,
+    '@/lib/starter-lifts': starterLifts,
     '@/lib/prisma': { prisma: { $transaction: async callback => { state.transactions++; return callback(tx); } } },
   });
   return { actions, state };
@@ -162,7 +165,9 @@ test('profile saves for session user and duplicate submission adds no second wei
   await assert.rejects(submit(), e => e.message === '/');
   await assert.rejects(submit(), e => e.message === '/');
   assert.equal(state.weights.length, 1); assert.equal(state.weights[0].userId, 'verified-user');
-  assert.equal(state.weights[0].weight, 72.5); assert.equal(state.categories, 1);
+  assert.equal(state.weights[0].weight, 72.5); assert.equal(state.categories, 6);
+  assert.equal(state.lifts.length, 14);
+  assert.ok(state.lifts.every(lift => lift.userId === "verified-user"));
   assert.equal(state.updates[0].name, 'Lifter_1'); assert.equal(state.updates[0].gender, 'FEMALE');
 });
 test('unfinished signup cannot bypass onboarding through protected role helpers', async () => {
@@ -181,4 +186,41 @@ test('unfinished signup cannot bypass onboarding through protected role helpers'
   await assert.rejects(actions.completeSignup({}, form(validProfile)), e => e.message === '/');
   assert.deepEqual(state.revalidated, [['/', 'layout']]);
   assert.equal(state.completed, true);
+});
+
+ test('starter lifts are per-user, repeatable, and preserve existing settings', async () => {
+  const categories = new Map();
+  const lifts = new Map();
+  const tx = Object.fromEntries([['category', categories], ['lift', lifts]].map(([name, rows]) => [name, {
+    upsert: async ({ where, create, update }) => {
+      assert.equal(Object.keys(update).length, 0);
+      const key = JSON.stringify(where.userId_name);
+      if (!rows.has(key)) rows.set(key, { id: key, ...create });
+      return rows.get(key);
+    },
+  }]));
+  await starterLifts.addStarterLifts(tx, 'first');
+  const snatch = [...lifts.values()].find(lift => lift.name === 'Snatch');
+  snatch.archived = true;
+  await starterLifts.addStarterLifts(tx, 'first');
+  assert.equal(lifts.size, 14); assert.equal(categories.size, 6);
+  assert.equal(snatch.archived, true);
+  await starterLifts.addStarterLifts(tx, 'second');
+  assert.equal(lifts.size, 28); assert.equal(categories.size, 12);
+});
+
+test('starter-lift repair uses the authenticated account and refreshes its views', async () => {
+  const initialized = [];
+  const revalidated = [];
+  const tx = {};
+  const actions = load('src/lib/starter-lift-actions.ts', {
+    'next/navigation': { redirect },
+    'next/cache': { revalidatePath: (...args) => revalidated.push(args) },
+    '@/lib/roles': { requireUserId: async () => 'authenticated-user' },
+    '@/lib/prisma': { prisma: { $transaction: async fn => fn(tx) } },
+    '@/lib/starter-lifts': { addStarterLifts: async (client, userId) => { assert.equal(client, tx); initialized.push(userId); } },
+  });
+  await assert.rejects(actions.initializeStarterLifts(), e => e.message === '/lifts');
+  assert.deepEqual(initialized, ['authenticated-user']);
+  assert.deepEqual(revalidated, [['/', 'layout']]);
 });
