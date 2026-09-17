@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getLifts, getCategories } from "@/lib/data";
 import { createLift } from "@/lib/actions";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -9,8 +8,7 @@ import { actionErrorMessage } from "@/lib/action-errors";
 export default async function AdminLiftsPage({
   searchParams,
 }: PageProps<"/admin/lifts">) {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
 
   const { error } = await searchParams;
 

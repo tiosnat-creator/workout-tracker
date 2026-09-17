@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getLiftDetail } from "@/lib/data";
 import { addManualOneRepMax } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
@@ -10,8 +10,7 @@ export default async function LiftDetailPage({
   params,
 }: PageProps<"/lifts/[id]">) {
   const { id } = await params;
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
 
   const detail = await getLiftDetail(id, userId);
   if (!detail) notFound();

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { encryptEmail, hashEmail } from "../src/lib/email-crypto";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -25,32 +26,61 @@ const DEFAULT_LIFTS: { name: string; category: string }[] = [
 ];
 
 async function main() {
-  const email = process.env.SEED_USER_EMAIL;
+  const ownerEmail = process.env.OWNER_EMAIL;
 
-  if (!email) {
-    throw new Error("SEED_USER_EMAIL must be set to seed the database");
+  if (!ownerEmail) {
+    throw new Error("OWNER_EMAIL must be set to seed the database");
   }
 
-  // No password: there's no login to check it against anymore (access is
-  // gated at the HTTP layer instead). Kept as an identifying email only.
-  // Clears passwordHash on update too, so a hash from before this change
-  // doesn't sit in the database indefinitely.
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { passwordHash: null },
-    create: { email },
-  });
+  const emailHash = hashEmail(ownerEmail);
+  const emailCiphertext = encryptEmail(ownerEmail);
+
+  // Steady-state path: find the owner by the new blind-index column.
+  let user = await prisma.user.findUnique({ where: { emailHash } });
+
+  if (!user) {
+    // Phase-A transition path only: the legacy plaintext `email` column
+    // still exists (see prisma/schema.prisma's User model comment and the
+    // add_auth_and_roles migration). If a pre-migration account matches,
+    // backfill the new columns onto that SAME row rather than creating a
+    // new one, so its id — and every Category/Lift/Session/etc. FK'd to
+    // it — stays attached. Once a later migration drops `email`, this
+    // branch stops matching anything and can be deleted.
+    const legacyUser = await prisma.user.findUnique({ where: { email: ownerEmail } });
+    if (legacyUser) {
+      user = await prisma.user.update({
+        where: { id: legacyUser.id },
+        data: { emailHash, emailCiphertext, role: "OWNER", passwordHash: null },
+      });
+    }
+  }
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: { emailHash, emailCiphertext, role: "OWNER" },
+    });
+  } else if (user.role !== "OWNER") {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "OWNER" },
+    });
+  }
+
+  // Rebind to a const so TypeScript (and the transaction closure below)
+  // can see this is non-null without re-checking — `user` above is `let`
+  // and reassigned across several branches.
+  const owner = user;
 
   // This deploy hook runs on every release. Only seed starter categories and
   // lifts the first time a user shows up (zero categories) — otherwise a
   // renamed or deleted default (e.g. "Squat" -> "Squats") would be silently
   // re-created empty on the next deploy, fighting the user's own edits.
   const existingCategoryCount = await prisma.category.count({
-    where: { userId: user.id },
+    where: { userId: owner.id },
   });
 
   if (existingCategoryCount > 0) {
-    console.log(`User ${user.email} already has categories — skipping default seed.`);
+    console.log(`Owner account already has categories — skipping default seed.`);
     return;
   }
 
@@ -60,13 +90,13 @@ async function main() {
   // categories but no lifts and no way to repair it.
   await prisma.$transaction(async (tx) => {
     await tx.category.create({
-      data: { userId: user.id, name: "Uncategorized", isUncategorized: true },
+      data: { userId: owner.id, name: "Uncategorized", isUncategorized: true },
     });
 
     const categoryIdByName = new Map<string, string>();
     for (const name of DEFAULT_CATEGORIES) {
       const category = await tx.category.create({
-        data: { userId: user.id, name },
+        data: { userId: owner.id, name },
       });
       categoryIdByName.set(name, category.id);
     }
@@ -75,12 +105,12 @@ async function main() {
       const categoryId = categoryIdByName.get(lift.category);
       if (!categoryId) continue;
       await tx.lift.create({
-        data: { userId: user.id, name: lift.name, categoryId },
+        data: { userId: owner.id, name: lift.name, categoryId },
       });
     }
   });
 
-  console.log(`Seeded user ${user.email} and ${DEFAULT_LIFTS.length} default lifts.`);
+  console.log(`Seeded owner account and ${DEFAULT_LIFTS.length} default lifts.`);
 }
 
 main()

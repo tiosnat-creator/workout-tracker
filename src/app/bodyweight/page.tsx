@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getBodyWeightEntries, getCurrentBodyWeight } from "@/lib/data";
 import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
@@ -8,8 +7,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { DateInput } from "@/components/DateInput";
 
 export default async function BodyWeightPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
 
   const [entries, current] = await Promise.all([
     getBodyWeightEntries(userId),
