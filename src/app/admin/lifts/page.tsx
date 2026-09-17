@@ -10,7 +10,8 @@ export default async function AdminLiftsPage({
 }: PageProps<"/admin/lifts">) {
   const userId = await requireUserId();
 
-  const { error } = await searchParams;
+  const { error, saved } = await searchParams;
+  const savedKey = Array.isArray(saved) ? saved[0] : saved;
 
   const [lifts, categories] = await Promise.all([
     getLifts(userId, true),
@@ -38,6 +39,12 @@ export default async function AdminLiftsPage({
       <ErrorBanner
         message={actionErrorMessage(Array.isArray(error) ? error[0] : error)}
       />
+
+      {savedKey && (
+        <p role="status" className="text-sm text-accent">
+          Lift saved.
+        </p>
+      )}
 
       {categories.length === 0 ? (
         <p className="text-sm text-muted">
@@ -102,7 +109,7 @@ export default async function AdminLiftsPage({
               </h2>
               <ul className="flex flex-col gap-2">
                 {categoryLifts.map((lift) => (
-                  <li key={lift.id}>
+                  <li key={`${lift.id}-${savedKey ?? "initial"}`}>
                     <details className="group rounded border border-border bg-surface open:border-accent">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
                         <span className="text-sm font-medium">

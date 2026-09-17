@@ -86,7 +86,9 @@ export async function updateLift(liftId: string, formData: FormData) {
   revalidatePath("/lifts");
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
-  redirect("/admin/lifts");
+  // A unique URL remounts the inline editor after the redirect, closing it
+  // while the refreshed list shows the saved name and category.
+  redirect(`/admin/lifts?saved=${encodeURIComponent(liftId)}-${Date.now()}`);
 }
 
 export async function createCategory(formData: FormData) {
