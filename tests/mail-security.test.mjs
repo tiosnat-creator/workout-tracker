@@ -55,7 +55,7 @@ test('missing configuration blocks issuance and redemption before database acces
 });
 test('failed delivery deletes its token and does not report success', async () => {
   let created, removed;
-  const a = actions(true, { magicLinkToken: {
+  const a = actions(true, { user: { findUnique: async () => ({ id: 'existing' }) }, magicLinkToken: {
     count: async () => 0,
     create: async ({ data }) => { created = data.tokenHash; },
     deleteMany: async ({ where }) => { if (where.tokenHash) removed = where.tokenHash; },

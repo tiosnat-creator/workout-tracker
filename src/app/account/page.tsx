@@ -10,7 +10,7 @@ export default async function AccountPage() {
   const userId = await requireUserId();
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { emailCiphertext: true, role: true },
+    select: { emailCiphertext: true, role: true, name: true, gender: true },
   });
 
   const email = user.emailCiphertext ? decryptEmail(user.emailCiphertext) : null;
@@ -19,6 +19,8 @@ export default async function AccountPage() {
     <div className="mx-auto flex max-w-sm flex-col gap-6">
       <h1 className="text-lg font-bold tracking-tight uppercase">Account</h1>
       <dl className="flex flex-col gap-2 text-sm">
+        <div className="flex justify-between"><dt className="text-muted">Username</dt><dd>{user.name ?? "—"}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">Gender</dt><dd>{user.gender === "MALE" ? "Male" : user.gender === "FEMALE" ? "Female" : "—"}</dd></div>
         <div className="flex justify-between">
           <dt className="text-muted">Email</dt>
           <dd>{email ?? "—"}</dd>

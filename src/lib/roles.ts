@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/session";
 
 export async function getCurrentUserId(): Promise<string | null> {
   const user = await getSessionUser();
-  return user?.id ?? null;
+  return user?.onboardingCompletedAt ? user.id : null;
 }
 
 // Real enforcement, not just a UI hint — proxy.ts only does an optimistic
@@ -14,6 +14,7 @@ export async function getCurrentUserId(): Promise<string | null> {
 export async function requireUserId(): Promise<string> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (!user.onboardingCompletedAt) redirect("/signup/profile");
   return user.id;
 }
 
@@ -24,6 +25,7 @@ function hasRole(role: Role, allowed: Role[]): boolean {
 export async function requireAdmin(): Promise<{ id: string; role: Role }> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (!user.onboardingCompletedAt) redirect("/signup/profile");
   if (!hasRole(user.role, ["OWNER", "ADMIN"])) redirect("/");
   return user;
 }
@@ -31,6 +33,7 @@ export async function requireAdmin(): Promise<{ id: string; role: Role }> {
 export async function requireOwner(): Promise<{ id: string; role: Role }> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (!user.onboardingCompletedAt) redirect("/signup/profile");
   if (!hasRole(user.role, ["OWNER"])) redirect("/");
   return user;
 }

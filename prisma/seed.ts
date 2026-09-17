@@ -50,14 +50,14 @@ async function main() {
     if (legacyUser) {
       user = await prisma.user.update({
         where: { id: legacyUser.id },
-        data: { emailHash, emailCiphertext, role: "OWNER", passwordHash: null },
+        data: { emailHash, emailCiphertext, role: "OWNER", passwordHash: null, onboardingCompletedAt: new Date() },
       });
     }
   }
 
   if (!user) {
     user = await prisma.user.create({
-      data: { emailHash, emailCiphertext, role: "OWNER" },
+      data: { emailHash, emailCiphertext, role: "OWNER", onboardingCompletedAt: new Date() },
     });
   } else if (user.role !== "OWNER") {
     user = await prisma.user.update({

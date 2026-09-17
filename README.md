@@ -8,8 +8,10 @@ Upsun.
 ## Access control
 
 Lifting Log is multi-tenant with passwordless, per-user login: anyone can
-create an account at `/login` by requesting a "magic link" emailed to
-them — there are no passwords anywhere in this app, ever. Every workout
+create an account at `/signup` by requesting a magic link. After email
+verification, `/signup/profile` collects a display username, gender (Male or
+Female), and weight in kg. `/login` only signs in existing accounts; it never
+creates users. There are no passwords in these flows. Every workout
 table (`Category`, `Lift`, `Session`, `SetEntry`, `OneRepMaxEntry`,
 `BodyWeightEntry`) is scoped to the signed-in user; nobody, including
 admins, can see another user's workout data.
@@ -83,3 +85,12 @@ Configure Resend only in environments where real email delivery is intended.
 Previews without email configuration cannot request or redeem login links;
 there is no log-based login fallback. To test login in a preview, use isolated
 test data and a controlled test mailbox with appropriately scoped credentials.
+
+
+## Testing signup on this branch
+
+See [the signup test guide](docs/signup-testing.md) for preview setup and manual
+scenarios. Run `npm test` for the isolated auth/profile regression tests.
+The new migration preserves existing accounts and requires onboarding only for
+new signups. Username is a non-unique display name (3–30 letters, numbers,
+dots, underscores or hyphens); email remains the login identity.

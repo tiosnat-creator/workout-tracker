@@ -42,7 +42,7 @@ export const getSessionUser = cache(async () => {
   const record = await prisma.userSession.findUnique({
     where: { tokenHash },
     include: {
-      user: { select: { id: true, role: true, disabledAt: true } },
+      user: { select: { id: true, role: true, disabledAt: true, onboardingCompletedAt: true } },
     },
   });
 
