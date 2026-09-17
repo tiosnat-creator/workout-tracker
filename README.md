@@ -64,8 +64,9 @@ into a dev branch's database, since there's no local Postgres setup. Also
 set `OWNER_EMAIL`, `EMAIL_ENCRYPTION_KEY`, and `EMAIL_HMAC_KEY` (generate
 the latter two with `openssl rand -base64 32` each, and keep them
 different from each other). `RESEND_API_KEY`/`RESEND_FROM_EMAIL` are
-optional locally — without them, magic links are logged to the server
-console instead of emailed.
+required for email sign-in in every environment, including local development.
+Without either value, requesting and redeeming links is disabled. Login links
+are never printed to the console. Use a controlled test mailbox for development.
 
 ## Deploying
 
@@ -77,8 +78,8 @@ the deploy hook (`.upsun/config.yaml`).
 These are secrets, not `.upsun/config.yaml` variables — set them per
 environment with `upsun variable:create --sensitive` (or your project's
 Upsun dashboard) before deploying: `OWNER_EMAIL`, `EMAIL_ENCRYPTION_KEY`,
-`EMAIL_HMAC_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`. Set
-`RESEND_API_KEY`/`RESEND_FROM_EMAIL` on production only, not on PR
-previews — otherwise testing the login flow on a preview sends real email
-to whatever address a tester types in (previews fall back to logging the
-magic link to the server console instead, same as local dev).
+`EMAIL_HMAC_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
+Configure Resend only in environments where real email delivery is intended.
+Previews without email configuration cannot request or redeem login links;
+there is no log-based login fallback. To test login in a preview, use isolated
+test data and a controlled test mailbox with appropriately scoped credentials.

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { encryptEmail, hashEmail } from "@/lib/email-crypto";
-import { sendMagicLinkEmail } from "@/lib/mail";
+import { isMagicLinkEmailConfigured, sendMagicLinkEmail } from "@/lib/mail";
 import {
   createUserSession,
   destroyAllSessionsForUser,
@@ -38,6 +38,7 @@ async function getRequestOrigin(): Promise<string> {
 }
 
 export async function requestMagicLink(formData: FormData) {
+  if (!isMagicLinkEmailConfigured()) redirect("/login?error=login-unavailable");
   const emailInput = String(formData.get("email") ?? "").trim();
 
   if (!EMAIL_RE.test(emailInput)) {
@@ -91,12 +92,19 @@ export async function requestMagicLink(formData: FormData) {
   });
 
   const origin = await getRequestOrigin();
-  await sendMagicLinkEmail(emailInput, `${origin}/login/verify?token=${token}`);
+  try {
+    await sendMagicLinkEmail(emailInput, `${origin}/login/verify?token=${token}`);
+  } catch {
+    // Failed delivery must not leave a usable token behind.
+    await prisma.magicLinkToken.deleteMany({ where: { tokenHash: hashToken(token) } });
+    redirect("/login?error=login-unavailable");
+  }
 
   redirect("/login?sent=1");
 }
 
 export async function consumeMagicLink(token: string) {
+  if (!isMagicLinkEmailConfigured()) redirect("/login?error=login-unavailable");
   if (!token) redirect("/login?error=invalid-link");
 
   const tokenHash = hashToken(token);
