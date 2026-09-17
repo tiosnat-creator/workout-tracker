@@ -7,7 +7,6 @@ const LINKS = [
   { href: "/lifts", label: "Lifts" },
   { href: "/bodyweight", label: "Body Weight" },
   { href: "/calculator", label: "Calculator" },
-  { href: "/admin", label: "Admin" },
   { href: "/account", label: "Account" },
 ];
 

@@ -80,14 +80,13 @@ export async function updateLift(liftId: string, formData: FormData) {
         data: { name, categoryId, archived },
       }),
     "duplicate-lift-name",
-    `/admin/lifts/${liftId}`,
+    "/admin/lifts",
   );
   revalidatePath("/admin/lifts");
-  revalidatePath(`/admin/lifts/${liftId}`);
   revalidatePath("/lifts");
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
-  redirect(`/admin/lifts/${liftId}`);
+  redirect("/admin/lifts");
 }
 
 export async function createCategory(formData: FormData) {
