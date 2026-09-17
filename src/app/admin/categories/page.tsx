@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getCategoriesWithLiftCounts } from "@/lib/data";
 import { createCategory, renameCategory, deleteCategory } from "@/lib/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -9,8 +8,7 @@ import { actionErrorMessage } from "@/lib/action-errors";
 export default async function AdminCategoriesPage({
   searchParams,
 }: PageProps<"/admin/categories">) {
-  const userId = await getCurrentUserId();
-  if (!userId) notFound();
+  const userId = await requireUserId();
 
   const { error } = await searchParams;
   const categories = await getCategoriesWithLiftCounts(userId);

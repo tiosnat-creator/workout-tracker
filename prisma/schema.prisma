@@ -6,17 +6,73 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
 model User {
-  id           String           @id @default(cuid())
-  email        String           @unique
+  id     String @id @default(cuid())
+  role   Role   @default(MEMBER)
+
+  // Legacy plaintext columns from the pre-magic-link, single-tenant era.
+  // Kept nullable and unused by application code during the migration
+  // window so prisma/seed.ts can backfill emailCiphertext/emailHash onto
+  // the existing row (preserving id) before a later migration drops them.
+  // See prisma/migrations/*_add_auth_and_roles for the phase-A/phase-B split.
+  email        String? @unique
   passwordHash String?
+
+  // Email is encrypted at rest (AES-256-GCM); emailHash is an HMAC-SHA256
+  // blind index used for exact-match lookups, since an encrypted value with
+  // a random IV can't be queried by equality. See src/lib/email-crypto.ts.
+  emailCiphertext String?
+  emailHash       String?   @unique
+
   name         String?
-  createdAt    DateTime         @default(now())
+  disabledAt   DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime          @default(now())
   lifts        Lift[]
   categories   Category[]
   sessions     Session[]
   oneRepMaxes  OneRepMaxEntry[]
   bodyWeights  BodyWeightEntry[]
+  userSessions UserSession[]
+}
+
+// A single-use, short-lived token emailed to the user for passwordless
+// login. tokenHash is the only thing ever stored — the raw token exists
+// only in the emailed URL. emailCiphertext/emailHash let a first-time
+// signup create the User from the token alone.
+model MagicLinkToken {
+  id              String    @id @default(cuid())
+  tokenHash       String    @unique
+  emailHash       String
+  emailCiphertext String
+  requestIp       String?
+  expiresAt       DateTime
+  consumedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([emailHash])
+  @@index([requestIp])
+}
+
+// A DB-backed login session (not a stateless JWT) so that disabling a user,
+// or a "log out everywhere" action, revokes access immediately instead of
+// waiting for a token to expire. tokenHash is the hash of the opaque
+// session cookie value.
+model UserSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Category {

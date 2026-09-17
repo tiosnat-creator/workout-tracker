@@ -1,19 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, notFound } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { redirect } from "next/navigation";
+import { requireUserId } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import type { ActionErrorCode } from "@/lib/action-errors";
-
-async function requireUserId() {
-  const userId = await getCurrentUserId();
-  if (!userId) {
-    notFound();
-  }
-  return userId;
-}
 
 // Next.js masks a thrown Server Action error's message in production
 // (replacing it with a generic digest), so throwing here would never reach

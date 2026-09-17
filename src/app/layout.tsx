@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getSessionUser } from "@/lib/session";
 import { Nav } from "@/components/Nav";
 
 // Every page reads live data on every request; nothing here is safe to
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const userId = await getCurrentUserId();
+  const user = await getSessionUser();
 
   return (
     <html
@@ -34,7 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {userId && <Nav />}
+        {user && <Nav />}
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
           {children}
         </main>

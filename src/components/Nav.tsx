@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { logout } from "@/lib/auth-actions";
 
 const LINKS = [
   { href: "/", label: "Dashboard" },
@@ -7,6 +8,7 @@ const LINKS = [
   { href: "/bodyweight", label: "Body Weight" },
   { href: "/calculator", label: "Calculator" },
   { href: "/admin", label: "Admin" },
+  { href: "/account", label: "Account" },
 ];
 
 export function Nav() {
@@ -26,6 +28,14 @@ export function Nav() {
               {link.label}
             </Link>
           ))}
+          <form action={logout}>
+            <button
+              type="submit"
+              className="rounded px-3 py-1.5 text-sm text-foreground/80 hover:bg-accent/10 hover:text-accent"
+            >
+              Log out
+            </button>
+          </form>
         </nav>
       </div>
     </header>
