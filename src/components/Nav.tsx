@@ -10,7 +10,7 @@ const LINKS = [
   { href: "/account", label: "Account" },
 ];
 
-export function Nav() {
+export function Nav({ showUserManagement }: { showUserManagement: boolean }) {
   return (
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -27,6 +27,14 @@ export function Nav() {
               {link.label}
             </Link>
           ))}
+          {showUserManagement && (
+            <Link
+              href="/admin/users"
+              className="rounded px-3 py-1.5 text-sm text-foreground/80 hover:bg-accent/10 hover:text-accent"
+            >
+              User Management
+            </Link>
+          )}
           <form action={logout}>
             <button
               type="submit"

@@ -131,7 +131,11 @@ export async function renameCategory(categoryId: string, formData: FormData) {
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
   revalidatePath("/");
-  redirect("/admin/categories");
+  // Remount the edited category row so its inline editor closes while the
+  // refreshed list displays the saved name.
+  redirect(
+    `/admin/categories?saved=${encodeURIComponent(categoryId)}-${Date.now()}`,
+  );
 }
 
 export async function deleteCategory(categoryId: string) {

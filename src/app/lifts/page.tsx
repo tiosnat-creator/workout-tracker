@@ -19,10 +19,10 @@ export default async function LiftsPage() {
         <h1 className="text-lg font-bold tracking-tight uppercase">Lifts</h1>
         <div className="flex items-center gap-4">
           <Link href="/admin/categories" className="text-sm text-accent">
-            Manage categories
+            Manage Categories
           </Link>
           <Link href="/admin/lifts" className="text-sm text-accent">
-            Manage lifts
+            Manage Lifts
           </Link>
         </div>
       </div>

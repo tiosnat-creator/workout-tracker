@@ -28,7 +28,7 @@ export default async function AdminLiftsPage({
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-lg font-bold tracking-tight uppercase">
-        Manage lifts
+        Manage Lifts
       </h1>
 
       <p className="text-sm text-muted">
