@@ -80,14 +80,15 @@ export async function updateLift(liftId: string, formData: FormData) {
         data: { name, categoryId, archived },
       }),
     "duplicate-lift-name",
-    `/admin/lifts/${liftId}`,
+    "/admin/lifts",
   );
   revalidatePath("/admin/lifts");
-  revalidatePath(`/admin/lifts/${liftId}`);
   revalidatePath("/lifts");
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
-  redirect(`/admin/lifts/${liftId}`);
+  // A unique URL remounts the inline editor after the redirect, closing it
+  // while the refreshed list shows the saved name and category.
+  redirect(`/admin/lifts?saved=${encodeURIComponent(liftId)}-${Date.now()}`);
 }
 
 export async function createCategory(formData: FormData) {
@@ -130,7 +131,11 @@ export async function renameCategory(categoryId: string, formData: FormData) {
   revalidatePath("/admin/lifts");
   revalidatePath("/lifts");
   revalidatePath("/");
-  redirect("/admin/categories");
+  // Remount the edited category row so its inline editor closes while the
+  // refreshed list displays the saved name.
+  redirect(
+    `/admin/categories?saved=${encodeURIComponent(categoryId)}-${Date.now()}`,
+  );
 }
 
 export async function deleteCategory(categoryId: string) {

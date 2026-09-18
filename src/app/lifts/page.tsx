@@ -15,11 +15,16 @@ export default async function LiftsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-bold tracking-tight uppercase">Lifts</h1>
-        <Link href="/admin/lifts" className="text-sm text-accent">
-          Manage lifts
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/categories" className="text-sm text-accent">
+            Manage Categories
+          </Link>
+          <Link href="/admin/lifts" className="text-sm text-accent">
+            Manage Lifts
+          </Link>
+        </div>
       </div>
 
       {lifts.length === 0 ? (
