@@ -1,6 +1,9 @@
 import { addSetEntry } from "@/lib/actions";
+import {
+  LiftWeightFields,
+  type SessionLiftOption,
+} from "@/components/LiftWeightFields";
 
-type LiftOption = { id: string; name: string; category: { name: string } };
 type PlannedDefaults = { id: string; liftId: string; weight: number; reps: number };
 
 export function ActualSetForm({
@@ -9,7 +12,7 @@ export function ActualSetForm({
   planned,
 }: {
   sessionId: string;
-  lifts: LiftOption[];
+  lifts: SessionLiftOption[];
   planned?: PlannedDefaults;
 }) {
   const fieldKey = planned?.id ?? "additional";
@@ -19,16 +22,13 @@ export function ActualSetForm({
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
     >
       {planned && <input type="hidden" name="plannedExerciseId" value={planned.id} />}
-      <div className="sm:col-span-2 lg:col-span-1">
-        <label htmlFor={`actual-lift-${fieldKey}`} className="mb-1 block text-xs font-medium">Actual lift</label>
-        <select id={`actual-lift-${fieldKey}`} name="liftId" required defaultValue={planned?.liftId} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent">
-          {lifts.map((lift) => <option key={lift.id} value={lift.id}>{lift.name} ({lift.category.name})</option>)}
-        </select>
-      </div>
-      <div>
-        <label htmlFor={`actual-weight-${fieldKey}`} className="mb-1 block text-xs font-medium">Weight (kg)</label>
-        <input id={`actual-weight-${fieldKey}`} name="weight" type="number" step="0.5" min="0" required defaultValue={planned?.weight} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
-      </div>
+      <LiftWeightFields
+        idPrefix={`actual-${fieldKey}`}
+        lifts={lifts}
+        defaultLiftId={planned?.liftId}
+        defaultWeight={planned?.weight}
+        liftLabel="Actual lift"
+      />
       <div>
         <label htmlFor={`actual-reps-${fieldKey}`} className="mb-1 block text-xs font-medium">Reps</label>
         <input id={`actual-reps-${fieldKey}`} name="reps" type="number" min="1" required defaultValue={planned?.reps} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />

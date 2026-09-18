@@ -1,11 +1,14 @@
 import { deleteSetEntry, updateSetEntry } from "@/lib/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { formatWeight } from "@/lib/format";
+import {
+  LiftWeightFields,
+  type SessionLiftOption,
+} from "@/components/LiftWeightFields";
 
-type LiftOption = { id: string; name: string; category: { name: string } };
 type ActualSet = { id: string; liftId: string; weight: number; reps: number; rpe: number | null; notes: string | null; lift: { name: string } };
 
-export function SessionSetEditor({ set, sessionId, lifts, plannedLiftName }: { set: ActualSet; sessionId: string; lifts: LiftOption[]; plannedLiftName?: string }) {
+export function SessionSetEditor({ set, sessionId, lifts, plannedLiftName }: { set: ActualSet; sessionId: string; lifts: SessionLiftOption[]; plannedLiftName?: string }) {
   const isVariation = plannedLiftName && plannedLiftName !== set.lift.name;
   return (
     <details id={`set-${set.id}`} className="group rounded border border-border bg-surface open:border-accent">
@@ -18,16 +21,13 @@ export function SessionSetEditor({ set, sessionId, lifts, plannedLiftName }: { s
       </summary>
       <div className="flex flex-col gap-3 border-t border-border p-3">
         <form action={updateSetEntry.bind(null, set.id, sessionId)} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label htmlFor={`lift-${set.id}`} className="mb-1 block text-xs font-medium">Actual lift</label>
-            <select id={`lift-${set.id}`} name="liftId" defaultValue={set.liftId} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent">
-              {lifts.map((lift) => <option key={lift.id} value={lift.id}>{lift.name} ({lift.category.name})</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`weight-${set.id}`} className="mb-1 block text-xs font-medium">Weight (kg)</label>
-            <input id={`weight-${set.id}`} name="weight" type="number" step="0.5" min="0" required defaultValue={set.weight} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
-          </div>
+          <LiftWeightFields
+            idPrefix={`set-${set.id}`}
+            lifts={lifts}
+            defaultLiftId={set.liftId}
+            defaultWeight={set.weight}
+            liftLabel="Actual lift"
+          />
           <div>
             <label htmlFor={`reps-${set.id}`} className="mb-1 block text-xs font-medium">Reps</label>
             <input id={`reps-${set.id}`} name="reps" type="number" min="1" required defaultValue={set.reps} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />

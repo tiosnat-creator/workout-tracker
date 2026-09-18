@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUserId } from "@/lib/roles";
-import { getLifts, getSessionDetail } from "@/lib/data";
+import { getCurrentOneRepMaxes, getSessionDetail } from "@/lib/data";
 import {
   completeSession,
   deleteSession,
@@ -30,11 +30,18 @@ const statusLabels = {
 export default async function SessionDetailPage({ params }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
   const userId = await requireUserId();
-  const [detail, lifts] = await Promise.all([
+  const [detail, liftRecords] = await Promise.all([
     getSessionDetail(id, userId),
-    getLifts(userId),
+    getCurrentOneRepMaxes(userId),
   ]);
   if (!detail) notFound();
+
+  const lifts = liftRecords.map(({ lift, current }) => ({
+    id: lift.id,
+    name: lift.name,
+    category: { name: lift.category.name },
+    oneRepMax: current?.weight ?? null,
+  }));
 
   const unplannedSets = detail.setEntries.filter((set) => set.plannedExerciseId === null);
 

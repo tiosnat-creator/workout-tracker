@@ -4,8 +4,11 @@ import {
   updatePlannedExercise,
 } from "@/lib/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import {
+  LiftWeightFields,
+  type SessionLiftOption,
+} from "@/components/LiftWeightFields";
 
-type LiftOption = { id: string; name: string; category: { name: string } };
 type PlannedExercise = {
   id: string;
   liftId: string;
@@ -22,7 +25,7 @@ export function PlannedExerciseForm({
   planned,
 }: {
   sessionId: string;
-  lifts: LiftOption[];
+  lifts: SessionLiftOption[];
   planned?: PlannedExercise;
 }) {
   const key = planned?.id ?? "new";
@@ -36,12 +39,12 @@ export function PlannedExerciseForm({
         action={action}
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
       >
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label htmlFor={`planned-lift-${key}`} className="mb-1 block text-xs font-medium">Lift</label>
-          <select id={`planned-lift-${key}`} name="liftId" required defaultValue={planned?.liftId} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent">
-            {lifts.map((lift) => <option key={lift.id} value={lift.id}>{lift.name} ({lift.category.name})</option>)}
-          </select>
-        </div>
+        <LiftWeightFields
+          idPrefix={`planned-${key}`}
+          lifts={lifts}
+          defaultLiftId={planned?.liftId}
+          defaultWeight={planned?.weight}
+        />
         <div>
           <label htmlFor={`planned-sets-${key}`} className="mb-1 block text-xs font-medium">Sets</label>
           <input id={`planned-sets-${key}`} name="sets" type="number" min="1" required defaultValue={planned?.sets ?? 3} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
@@ -49,10 +52,6 @@ export function PlannedExerciseForm({
         <div>
           <label htmlFor={`planned-reps-${key}`} className="mb-1 block text-xs font-medium">Reps</label>
           <input id={`planned-reps-${key}`} name="reps" type="number" min="1" required defaultValue={planned?.reps ?? 3} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
-        </div>
-        <div>
-          <label htmlFor={`planned-weight-${key}`} className="mb-1 block text-xs font-medium">Weight (kg)</label>
-          <input id={`planned-weight-${key}`} name="weight" type="number" step="0.5" min="0" required defaultValue={planned?.weight} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
         </div>
         <div>
           <label htmlFor={`planned-notes-${key}`} className="mb-1 block text-xs font-medium">Notes</label>
