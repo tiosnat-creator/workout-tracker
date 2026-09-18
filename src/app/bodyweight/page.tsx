@@ -1,6 +1,10 @@
 import { requireUserId } from "@/lib/roles";
 import { getBodyWeightEntries, getCurrentBodyWeight } from "@/lib/data";
-import { addBodyWeightEntry, deleteBodyWeightEntry } from "@/lib/actions";
+import {
+  addBodyWeightEntry,
+  deleteBodyWeightEntry,
+  updateBodyWeightEntry,
+} from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
 import { BodyWeightChart } from "@/components/BodyWeightChart";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -101,25 +105,80 @@ export default async function BodyWeightPage() {
         ) : (
           <ul className="flex flex-col gap-2">
             {entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex items-center justify-between gap-2 rounded border border-border bg-surface px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {formatWeight(entry.weight)}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {formatDate(entry.date)}
-                    {entry.notes ? ` · ${entry.notes}` : ""}
-                  </p>
-                </div>
-                <ConfirmSubmitButton
-                  action={deleteBodyWeightEntry.bind(null, entry.id)}
-                  confirmMessage={`Delete the ${formatWeight(entry.weight)} entry from ${formatDate(entry.date)}?`}
-                  label="Delete"
-                  className="shrink-0 text-xs text-muted hover:text-red-600"
-                />
+              <li key={entry.id}>
+                <details className="group rounded border border-border bg-surface open:border-accent">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {formatWeight(entry.weight)}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {formatDate(entry.date)}
+                        {entry.notes ? ` · ${entry.notes}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-muted group-open:text-accent">
+                      Edit
+                    </span>
+                  </summary>
+                  <div className="flex flex-col gap-3 border-t border-border p-3">
+                    <form
+                      action={updateBodyWeightEntry.bind(null, entry.id)}
+                      className="flex flex-col gap-3 sm:flex-row sm:items-end"
+                    >
+                      <div className="w-28">
+                        <label htmlFor={`weight-${entry.id}`} className="mb-1 block text-xs font-medium">
+                          Weight (kg)
+                        </label>
+                        <input
+                          id={`weight-${entry.id}`}
+                          name="weight"
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          required
+                          defaultValue={entry.weight}
+                          className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`date-${entry.id}`} className="mb-1 block text-xs font-medium">
+                          Date
+                        </label>
+                        <DateInput
+                          id={`date-${entry.id}`}
+                          name="date"
+                          required
+                          defaultValue={entry.date.toISOString().slice(0, 10)}
+                          className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label htmlFor={`notes-${entry.id}`} className="mb-1 block text-xs font-medium">
+                          Notes (optional)
+                        </label>
+                        <input
+                          id={`notes-${entry.id}`}
+                          name="notes"
+                          defaultValue={entry.notes ?? ""}
+                          className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground"
+                      >
+                        Save
+                      </button>
+                    </form>
+                    <ConfirmSubmitButton
+                      action={deleteBodyWeightEntry.bind(null, entry.id)}
+                      confirmMessage={`Delete the ${formatWeight(entry.weight)} entry from ${formatDate(entry.date)}?`}
+                      label="Delete entry"
+                      className="self-start text-xs text-muted hover:text-red-600"
+                    />
+                  </div>
+                </details>
               </li>
             ))}
           </ul>
