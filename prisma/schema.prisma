@@ -22,9 +22,15 @@ enum MagicLinkPurpose {
   SIGNUP
 }
 
+enum SessionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
-  id     String @id @default(cuid())
-  role   Role   @default(MEMBER)
+  id   String @id @default(cuid())
+  role Role   @default(MEMBER)
 
   // Legacy plaintext columns from the pre-magic-link, single-tenant era.
   // Kept nullable and unused by application code during the migration
@@ -38,20 +44,20 @@ model User {
   // blind index used for exact-match lookups, since an encrypted value with
   // a random IV can't be queried by equality. See src/lib/email-crypto.ts.
   emailCiphertext String?
-  emailHash       String?   @unique
+  emailHash       String? @unique
 
-  name         String?
-  gender       Gender?
+  name                  String?
+  gender                Gender?
   onboardingCompletedAt DateTime?
-  disabledAt   DateTime?
-  lastLoginAt  DateTime?
-  createdAt    DateTime          @default(now())
-  lifts        Lift[]
-  categories   Category[]
-  sessions     Session[]
-  oneRepMaxes  OneRepMaxEntry[]
-  bodyWeights  BodyWeightEntry[]
-  userSessions UserSession[]
+  disabledAt            DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime          @default(now())
+  lifts                 Lift[]
+  categories            Category[]
+  sessions              Session[]
+  oneRepMaxes           OneRepMaxEntry[]
+  bodyWeights           BodyWeightEntry[]
+  userSessions          UserSession[]
 }
 
 // A single-use, short-lived token emailed to the user for passwordless
@@ -60,14 +66,14 @@ model User {
 // signup create the User from the token alone.
 model MagicLinkToken {
   purpose         MagicLinkPurpose @default(LOGIN)
-  id              String    @id @default(cuid())
-  tokenHash       String    @unique
+  id              String           @id @default(cuid())
+  tokenHash       String           @unique
   emailHash       String
   emailCiphertext String
   requestIp       String?
   expiresAt       DateTime
   consumedAt      DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime         @default(now())
 
   @@index([emailHash])
   @@index([requestIp])
@@ -102,42 +108,70 @@ model Category {
 }
 
 model Lift {
-  id             String           @id @default(cuid())
-  userId         String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  categoryId     String
-  category       Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  archived       Boolean          @default(false)
-  dashboardOrder Int              @default(0)
-  createdAt      DateTime         @default(now())
-  setEntries     SetEntry[]
-  oneRepMaxes    OneRepMaxEntry[]
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  categoryId       String
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  archived         Boolean           @default(false)
+  dashboardOrder   Int               @default(0)
+  createdAt        DateTime          @default(now())
+  setEntries       SetEntry[]
+  plannedExercises PlannedExercise[]
+  oneRepMaxes      OneRepMaxEntry[]
 
   @@unique([userId, name])
 }
 
 model Session {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  status           SessionStatus     @default(COMPLETED)
+  planNotes        String?
+  notes            String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  plannedExercises PlannedExercise[]
+  setEntries       SetEntry[]
+}
+
+model PlannedExercise {
   id         String     @id @default(cuid())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date       DateTime
+  sessionId  String
+  session    Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  liftId     String
+  lift       Lift       @relation(fields: [liftId], references: [id], onDelete: Restrict)
+  sets       Int
+  reps       Int
+  weight     Float
   notes      String?
+  order      Int        @default(0)
   createdAt  DateTime   @default(now())
-  setEntries SetEntry[]
+  actualSets SetEntry[]
+
+  @@index([sessionId])
+  @@index([liftId])
 }
 
 model SetEntry {
-  id        String   @id @default(cuid())
-  sessionId String
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  liftId    String
-  lift      Lift     @relation(fields: [liftId], references: [id])
-  weight    Float
-  reps      Int
-  rpe       Float?
-  notes     String?
-  order     Int      @default(0)
+  id                String           @id @default(cuid())
+  sessionId         String
+  session           Session          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  plannedExerciseId String?
+  plannedExercise   PlannedExercise? @relation(fields: [plannedExerciseId], references: [id], onDelete: SetNull)
+  liftId            String
+  lift              Lift             @relation(fields: [liftId], references: [id])
+  weight            Float
+  reps              Int
+  rpe               Float?
+  notes             String?
+  order             Int              @default(0)
+
+  @@index([plannedExerciseId])
 }
 
 model OneRepMaxEntry {
