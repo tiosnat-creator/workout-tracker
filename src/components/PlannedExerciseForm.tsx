@@ -37,7 +37,7 @@ export function PlannedExerciseForm({
     <div className="flex flex-col gap-3">
       <form
         action={action}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-start"
       >
         <LiftWeightFields
           idPrefix={`planned-${key}`}
@@ -57,7 +57,7 @@ export function PlannedExerciseForm({
           <label htmlFor={`planned-notes-${key}`} className="mb-1 block text-xs font-medium">Notes</label>
           <input id={`planned-notes-${key}`} name="notes" defaultValue={planned?.notes ?? ""} className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
         </div>
-        <button type="submit" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground lg:col-start-5">
+        <button type="submit" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground lg:mt-5 lg:h-[34px]">
           {planned ? "Save" : "Add to plan"}
         </button>
       </form>

@@ -152,12 +152,12 @@ export function LiftWeightFields({
       </div>
 
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="relative mb-1 h-4">
           <label htmlFor={`${idPrefix}-weight`} className="text-xs font-medium">
             Weight
           </label>
           {oneRepMax && (
-            <span className="flex rounded border border-border p-0.5 text-[0.65rem]">
+            <span className="absolute right-0 top-1/2 flex -translate-y-1/2 rounded border border-border p-0.5 text-[0.65rem]">
               <button
                 type="button"
                 onClick={() => setWeightMode("kg")}

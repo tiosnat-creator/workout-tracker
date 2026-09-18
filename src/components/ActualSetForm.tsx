@@ -19,7 +19,7 @@ export function ActualSetForm({
   return (
     <form
       action={addSetEntry.bind(null, sessionId)}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-start"
     >
       {planned && <input type="hidden" name="plannedExerciseId" value={planned.id} />}
       <LiftWeightFields
@@ -41,7 +41,7 @@ export function ActualSetForm({
         <label htmlFor={`actual-notes-${fieldKey}`} className="mb-1 block text-xs font-medium">Set notes</label>
         <input id={`actual-notes-${fieldKey}`} name="notes" className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-accent" />
       </div>
-      <button type="submit" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground lg:col-start-5">Log set</button>
+      <button type="submit" className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground lg:mt-5 lg:h-[34px]">Log set</button>
     </form>
   );
 }
