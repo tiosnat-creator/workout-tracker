@@ -19,7 +19,7 @@ export default async function SessionsPage() {
           href="/sessions/new"
           className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground"
         >
-          + New session
+          + Plan session
         </Link>
       </div>
 
@@ -28,7 +28,14 @@ export default async function SessionsPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {sessions.map((s) => {
-            const lifts = [...new Set(s.setEntries.map((e) => e.lift.name))];
+            const actualLifts = [...new Set(s.setEntries.map((e) => e.lift.name))];
+            const plannedLifts = s.plannedExercises.map((e) => e.lift.name);
+            const statusLabel =
+              s.status === "PLANNED"
+                ? "Planned"
+                : s.status === "IN_PROGRESS"
+                  ? "In progress"
+                  : "Completed";
             return (
               <li
                 key={s.id}
@@ -38,11 +45,20 @@ export default async function SessionsPage() {
                   href={`/sessions/${s.id}`}
                   className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="text-sm font-medium">
-                    {formatDate(s.date)}
+                  <span>
+                    <span className="text-sm font-medium">{formatDate(s.date)}</span>
+                    <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[0.65rem] font-semibold uppercase text-muted">
+                      {statusLabel}
+                    </span>
                   </span>
                   <span className="text-xs text-muted">
-                    {lifts.length > 0 ? lifts.join(", ") : "No sets logged"}
+                    {s.status === "PLANNED"
+                      ? plannedLifts.length > 0
+                        ? plannedLifts.join(", ")
+                        : "Plan is empty"
+                      : actualLifts.length > 0
+                        ? `${actualLifts.join(", ")} · ${s.setEntries.length} set${s.setEntries.length === 1 ? "" : "s"}`
+                        : "No sets logged"}
                   </span>
                 </Link>
                 <ConfirmSubmitButton

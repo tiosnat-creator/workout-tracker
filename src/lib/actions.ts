@@ -172,7 +172,7 @@ export async function deleteCategory(categoryId: string) {
 export async function createSession(formData: FormData) {
   const userId = await requireUserId();
   const dateValue = String(formData.get("date") ?? "");
-  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const planNotes = String(formData.get("planNotes") ?? "").trim() || null;
 
   const date = dateValue ? new Date(dateValue) : new Date();
   if (Number.isNaN(date.getTime())) {
@@ -180,7 +180,7 @@ export async function createSession(formData: FormData) {
   }
 
   const session = await prisma.session.create({
-    data: { userId, date, notes },
+    data: { userId, date, planNotes, status: "PLANNED" },
   });
 
   revalidatePath("/sessions");
@@ -190,6 +190,7 @@ export async function createSession(formData: FormData) {
 export async function updateSession(sessionId: string, formData: FormData) {
   const userId = await requireUserId();
   const dateValue = String(formData.get("date") ?? "");
+  const planNotes = String(formData.get("planNotes") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const date = new Date(dateValue);
 
@@ -205,7 +206,7 @@ export async function updateSession(sessionId: string, formData: FormData) {
 
   await prisma.session.update({
     where: { id: sessionId },
-    data: { date, notes },
+    data: { date, planNotes, notes },
   });
 
   revalidatePath(`/sessions/${sessionId}`);
@@ -215,6 +216,140 @@ export async function updateSession(sessionId: string, formData: FormData) {
     revalidatePath(`/lifts/${liftId}`);
   }
   redirect(`/sessions/${sessionId}?saved=${Date.now()}`);
+}
+
+function plannedExerciseValues(formData: FormData) {
+  const liftId = String(formData.get("liftId") ?? "");
+  const sets = Number(formData.get("sets"));
+  const reps = Number(formData.get("reps"));
+  const weight = Number(formData.get("weight"));
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (
+    !liftId ||
+    !Number.isInteger(sets) ||
+    sets < 1 ||
+    !Number.isInteger(reps) ||
+    reps < 1 ||
+    !Number.isFinite(weight) ||
+    weight < 0
+  ) {
+    throw new Error("A valid lift, sets, reps, and target weight are required.");
+  }
+  return { liftId, sets, reps, weight, notes };
+}
+
+export async function addPlannedExercise(sessionId: string, formData: FormData) {
+  const userId = await requireUserId();
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, userId, status: "PLANNED" },
+  });
+  if (!session) throw new Error("Only planned sessions can be changed.");
+
+  const values = plannedExerciseValues(formData);
+  const lift = await prisma.lift.findFirst({
+    where: { id: values.liftId, userId },
+  });
+  if (!lift) throw new Error("Lift not found.");
+
+  const order = await prisma.plannedExercise.count({ where: { sessionId } });
+  await prisma.plannedExercise.create({
+    data: { sessionId, ...values, order },
+  });
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  redirect(`/sessions/${sessionId}?planned=${Date.now()}`);
+}
+
+export async function updatePlannedExercise(
+  plannedExerciseId: string,
+  sessionId: string,
+  formData: FormData,
+) {
+  const userId = await requireUserId();
+  const planned = await prisma.plannedExercise.findFirst({
+    where: {
+      id: plannedExerciseId,
+      sessionId,
+      session: { userId, status: "PLANNED" },
+    },
+  });
+  if (!planned) throw new Error("Planned exercise not found.");
+
+  const values = plannedExerciseValues(formData);
+  const lift = await prisma.lift.findFirst({
+    where: { id: values.liftId, userId },
+  });
+  if (!lift) throw new Error("Lift not found.");
+
+  await prisma.plannedExercise.update({
+    where: { id: plannedExerciseId },
+    data: values,
+  });
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  redirect(`/sessions/${sessionId}?planned=${Date.now()}`);
+}
+
+export async function deletePlannedExercise(
+  plannedExerciseId: string,
+  sessionId: string,
+) {
+  const userId = await requireUserId();
+  const planned = await prisma.plannedExercise.findFirst({
+    where: {
+      id: plannedExerciseId,
+      sessionId,
+      session: { userId, status: "PLANNED" },
+    },
+  });
+  if (!planned) throw new Error("Planned exercise not found.");
+
+  await prisma.plannedExercise.delete({ where: { id: plannedExerciseId } });
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+}
+
+export async function startSession(sessionId: string) {
+  const userId = await requireUserId();
+  const result = await prisma.session.updateMany({
+    where: { id: sessionId, userId, status: "PLANNED" },
+    data: { status: "IN_PROGRESS", startedAt: new Date(), completedAt: null },
+  });
+  if (result.count !== 1) throw new Error("Planned session not found.");
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  revalidatePath("/");
+  redirect(`/sessions/${sessionId}?started=${Date.now()}`);
+}
+
+export async function completeSession(sessionId: string) {
+  const userId = await requireUserId();
+  const result = await prisma.session.updateMany({
+    where: { id: sessionId, userId, status: "IN_PROGRESS" },
+    data: { status: "COMPLETED", completedAt: new Date() },
+  });
+  if (result.count !== 1) throw new Error("Active session not found.");
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  revalidatePath("/");
+  redirect(`/sessions/${sessionId}?completed=${Date.now()}`);
+}
+
+export async function reopenSession(sessionId: string) {
+  const userId = await requireUserId();
+  const result = await prisma.session.updateMany({
+    where: { id: sessionId, userId, status: "COMPLETED" },
+    data: { status: "IN_PROGRESS", completedAt: null },
+  });
+  if (result.count !== 1) throw new Error("Completed session not found.");
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  revalidatePath("/");
+  redirect(`/sessions/${sessionId}?reopened=${Date.now()}`);
 }
 
 export async function deleteSession(sessionId: string) {
@@ -242,6 +377,9 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
     where: { id: sessionId, userId },
   });
   if (!session) throw new Error("Session not found.");
+  if (session.status !== "IN_PROGRESS") {
+    throw new Error("Start or reopen the workout before logging actual sets.");
+  }
 
   const liftId = String(formData.get("liftId") ?? "");
   const weight = Number(formData.get("weight"));
@@ -249,6 +387,8 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
   const rpeRaw = String(formData.get("rpe") ?? "").trim();
   const rpe = rpeRaw ? Number(rpeRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
+  const plannedExerciseId =
+    String(formData.get("plannedExerciseId") ?? "").trim() || null;
 
   if (
     !liftId ||
@@ -264,10 +404,26 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
   const lift = await prisma.lift.findFirst({ where: { id: liftId, userId } });
   if (!lift) throw new Error("Lift not found.");
 
+  if (plannedExerciseId) {
+    const planned = await prisma.plannedExercise.findFirst({
+      where: { id: plannedExerciseId, sessionId, session: { userId } },
+    });
+    if (!planned) throw new Error("Planned exercise not found.");
+  }
+
   const lastOrder = await prisma.setEntry.count({ where: { sessionId } });
 
   await prisma.setEntry.create({
-    data: { sessionId, liftId, weight, reps, rpe, notes, order: lastOrder },
+    data: {
+      sessionId,
+      plannedExerciseId,
+      liftId,
+      weight,
+      reps,
+      rpe,
+      notes,
+      order: lastOrder,
+    },
   });
 
   revalidatePath(`/sessions/${sessionId}`);
