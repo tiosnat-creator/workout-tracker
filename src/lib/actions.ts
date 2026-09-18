@@ -175,6 +175,9 @@ export async function createSession(formData: FormData) {
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
   const date = dateValue ? new Date(dateValue) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("A valid date is required.");
+  }
 
   const session = await prisma.session.create({
     data: { userId, date, notes },
@@ -184,17 +187,52 @@ export async function createSession(formData: FormData) {
   redirect(`/sessions/${session.id}`);
 }
 
+export async function updateSession(sessionId: string, formData: FormData) {
+  const userId = await requireUserId();
+  const dateValue = String(formData.get("date") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("A valid date is required.");
+  }
+
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, userId },
+    include: { setEntries: { select: { liftId: true } } },
+  });
+  if (!session) throw new Error("Session not found.");
+
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: { date, notes },
+  });
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  revalidatePath("/");
+  for (const liftId of new Set(session.setEntries.map((set) => set.liftId))) {
+    revalidatePath(`/lifts/${liftId}`);
+  }
+  redirect(`/sessions/${sessionId}?saved=${Date.now()}`);
+}
+
 export async function deleteSession(sessionId: string) {
   const userId = await requireUserId();
 
   const session = await prisma.session.findFirst({
     where: { id: sessionId, userId },
+    include: { setEntries: { select: { liftId: true } } },
   });
   if (!session) throw new Error("Session not found.");
 
   await prisma.session.delete({ where: { id: sessionId } });
   revalidatePath("/sessions");
   revalidatePath("/");
+  for (const liftId of new Set(session.setEntries.map((set) => set.liftId))) {
+    revalidatePath(`/lifts/${liftId}`);
+  }
+  redirect("/sessions");
 }
 
 export async function addSetEntry(sessionId: string, formData: FormData) {
@@ -208,12 +246,19 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
   const liftId = String(formData.get("liftId") ?? "");
   const weight = Number(formData.get("weight"));
   const reps = Number(formData.get("reps"));
-  const rpeRaw = formData.get("rpe");
+  const rpeRaw = String(formData.get("rpe") ?? "").trim();
   const rpe = rpeRaw ? Number(rpeRaw) : null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!liftId || !Number.isFinite(weight) || !Number.isFinite(reps)) {
-    throw new Error("A lift, weight, and reps are required.");
+  if (
+    !liftId ||
+    !Number.isFinite(weight) ||
+    weight < 0 ||
+    !Number.isInteger(reps) ||
+    reps < 1 ||
+    (rpe !== null && (!Number.isFinite(rpe) || rpe < 1 || rpe > 10))
+  ) {
+    throw new Error("A valid lift, weight, reps, and optional RPE are required.");
   }
 
   const lift = await prisma.lift.findFirst({ where: { id: liftId, userId } });
@@ -226,10 +271,56 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
   });
 
   revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
 }
 
-export async function deleteSetEntry(setEntryId: string, sessionId: string) {
+export async function updateSetEntry(
+  setEntryId: string,
+  sessionId: string,
+  formData: FormData,
+) {
+  const userId = await requireUserId();
+
+  const set = await prisma.setEntry.findFirst({
+    where: { id: setEntryId, sessionId, session: { userId } },
+  });
+  if (!set) throw new Error("Set not found.");
+
+  const liftId = String(formData.get("liftId") ?? set.liftId);
+  const weight = Number(formData.get("weight"));
+  const reps = Number(formData.get("reps"));
+  const rpeRaw = String(formData.get("rpe") ?? "").trim();
+  const rpe = rpeRaw ? Number(rpeRaw) : null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (
+    !liftId ||
+    !Number.isFinite(weight) ||
+    weight < 0 ||
+    !Number.isInteger(reps) ||
+    reps < 1 ||
+    (rpe !== null && (!Number.isFinite(rpe) || rpe < 1 || rpe > 10))
+  ) {
+    throw new Error("A valid lift, weight, reps, and optional RPE are required.");
+  }
+
+  const lift = await prisma.lift.findFirst({ where: { id: liftId, userId } });
+  if (!lift) throw new Error("Lift not found.");
+
+  await prisma.setEntry.update({
+    where: { id: setEntryId },
+    data: { liftId, weight, reps, rpe, notes },
+  });
+
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath(`/lifts/${set.liftId}`);
+  revalidatePath(`/lifts/${liftId}`);
+  revalidatePath("/");
+  redirect(`/sessions/${sessionId}?saved=${Date.now()}`);
+}
+
+export async function deleteSetEntry(setEntryId: string) {
   const userId = await requireUserId();
 
   const set = await prisma.setEntry.findFirst({
@@ -238,7 +329,8 @@ export async function deleteSetEntry(setEntryId: string, sessionId: string) {
   if (!set) throw new Error("Set not found.");
 
   await prisma.setEntry.delete({ where: { id: setEntryId } });
-  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath(`/sessions/${set.sessionId}`);
+  revalidatePath(`/lifts/${set.liftId}`);
   revalidatePath("/");
 }
 
@@ -280,16 +372,56 @@ export async function addManualOneRepMax(liftId: string, formData: FormData) {
 
   const weight = Number(formData.get("weight"));
   const dateValue = String(formData.get("date") ?? "");
+  const date = new Date(dateValue);
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!Number.isFinite(weight) || !dateValue) {
-    throw new Error("A weight and date are required.");
+  if (!(weight > 0) || !Number.isFinite(weight) || Number.isNaN(date.getTime())) {
+    throw new Error("A positive weight and a valid date are required.");
   }
 
   await prisma.oneRepMaxEntry.create({
-    data: { userId, liftId, weight, date: new Date(dateValue), notes },
+    data: { userId, liftId, weight, date, notes },
   });
 
+  revalidatePath(`/lifts/${liftId}`);
+  revalidatePath("/");
+}
+
+export async function updateManualOneRepMax(
+  entryId: string,
+  liftId: string,
+  formData: FormData,
+) {
+  const userId = await requireUserId();
+  const entry = await prisma.oneRepMaxEntry.findFirst({
+    where: { id: entryId, liftId, userId },
+  });
+  if (!entry) throw new Error("1RM entry not found.");
+
+  const weight = Number(formData.get("weight"));
+  const date = new Date(String(formData.get("date") ?? ""));
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  if (!(weight > 0) || Number.isNaN(date.getTime())) {
+    throw new Error("A positive weight and a valid date are required.");
+  }
+
+  await prisma.oneRepMaxEntry.update({
+    where: { id: entryId },
+    data: { weight, date, notes },
+  });
+  revalidatePath(`/lifts/${liftId}`);
+  revalidatePath("/");
+  redirect(`/lifts/${liftId}?saved=${Date.now()}`);
+}
+
+export async function deleteManualOneRepMax(entryId: string, liftId: string) {
+  const userId = await requireUserId();
+  const entry = await prisma.oneRepMaxEntry.findFirst({
+    where: { id: entryId, liftId, userId },
+  });
+  if (!entry) throw new Error("1RM entry not found.");
+
+  await prisma.oneRepMaxEntry.delete({ where: { id: entryId } });
   revalidatePath(`/lifts/${liftId}`);
   revalidatePath("/");
 }
@@ -311,6 +443,28 @@ export async function addBodyWeightEntry(formData: FormData) {
   });
 
   revalidatePath("/bodyweight");
+}
+
+export async function updateBodyWeightEntry(entryId: string, formData: FormData) {
+  const userId = await requireUserId();
+  const entry = await prisma.bodyWeightEntry.findFirst({
+    where: { id: entryId, userId },
+  });
+  if (!entry) throw new Error("Entry not found.");
+
+  const weight = Number(formData.get("weight"));
+  const date = new Date(String(formData.get("date") ?? ""));
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  if (!(weight > 0) || Number.isNaN(date.getTime())) {
+    throw new Error("A positive weight and a valid date are required.");
+  }
+
+  await prisma.bodyWeightEntry.update({
+    where: { id: entryId },
+    data: { weight, date, notes },
+  });
+  revalidatePath("/bodyweight");
+  redirect(`/bodyweight?saved=${Date.now()}`);
 }
 
 export async function deleteBodyWeightEntry(entryId: string) {

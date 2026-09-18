@@ -29,17 +29,24 @@ export function DateInput({
   id,
   required,
   className,
+  defaultValue,
 }: {
   name: string;
   id?: string;
   required?: boolean;
   className?: string;
+  defaultValue?: string;
 }) {
-  const [value, setValue] = useState(() => new Date().toISOString().slice(0, 10));
+  const [value, setValue] = useState(
+    () => defaultValue ?? new Date().toISOString().slice(0, 10),
+  );
 
   useEffect(() => {
-    setValue(localToday());
-  }, []);
+    // Correct the server's UTC guess after hydration for add-entry forms and
+    // pick up a saved date when an edit form is refreshed in place.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setValue(defaultValue ?? localToday());
+  }, [defaultValue]);
 
   return (
     <input
