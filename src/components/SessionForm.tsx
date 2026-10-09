@@ -26,13 +26,13 @@ export function SessionForm() {
         <DateInput id="date" name="date" required className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent" />
       </div>
       <div hidden={type !== "WOD"}>
-        <fieldset disabled={type !== "WOD"} className="flex flex-col gap-4"><WodFields /></fieldset>
+        <fieldset disabled={type !== "WOD"} className="flex flex-col gap-4"><WodFields showResults={false} /></fieldset>
       </div>
       <div>
         <label htmlFor="planNotes" className="mb-1 block text-sm font-medium">Plan notes (optional)</label>
         <textarea id="planNotes" name="planNotes" rows={3} className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent" />
       </div>
-      <SaveButton label="Create plan" />
+      <SaveButton label={type === "WOD" ? "Create WOD" : "Create plan"} />
     </form>
   );
 }

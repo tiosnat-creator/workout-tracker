@@ -216,8 +216,8 @@ test("invalid types and empty WODs are rejected before writing", async () => {
 test("WOD results and lifecycle changes are saved together and scoped to owner and type", async () => {
   let change;
   const actions = loadActions({ session: { updateMany: async (args) => { change = args; return { count: 1 }; } } });
-  await assert.rejects(actions.updateWodSession("wod", form({ workout: "Run\nRow", results: "12:30\nScaled", intent: "complete" })), /\/sessions\/wod\?saved=/);
-  assert.deepEqual(plain(change.where), { id: "wod", userId: "signed-in-user", type: "WOD", status: "IN_PROGRESS" });
+  await assert.rejects(actions.updateWodSession("wod", form({ workout: "Run\nRow", results: "12:30\nScaled" })), /\/sessions\/wod\?saved=/);
+  assert.deepEqual(plain(change.where), { id: "wod", userId: "signed-in-user", type: "WOD" });
   assert.equal(change.data.results, "12:30\nScaled");
   assert.equal(change.data.status, "COMPLETED");
   assert.ok(change.data.completedAt instanceof Date);
@@ -225,10 +225,15 @@ test("WOD results and lifecycle changes are saved together and scoped to owner a
 
 test("missing or other-user WODs cannot be updated", async () => {
   const actions = loadActions({ session: { updateMany: async () => ({ count: 0 }) } });
-  await assert.rejects(actions.updateWodSession("other-user-session", form({ workout: "Run" })), /WOD session not found/);
+  await assert.rejects(actions.updateWodSession("other-user-session", form({ workout: "Run", results: "Done" })), /WOD session not found/);
 });
 
 test("WOD sessions cannot receive structured lift sets", async () => {
   const actions = loadActions({ session: { findFirst: async () => ({ type: "WOD", status: "IN_PROGRESS" }) } });
   await assert.rejects(actions.addSetEntry("wod", form({ liftId: "lift", weight: "50", reps: "3" })), /free-text results/);
+});
+
+ test("saving blank WOD results cannot complete a session", async () => {
+  const actions = loadActions({});
+  await assert.rejects(actions.updateWodSession("wod", form({ workout: "Run", results: "  " })), /Results are required/);
 });

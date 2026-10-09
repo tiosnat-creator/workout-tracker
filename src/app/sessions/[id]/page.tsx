@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUserId } from "@/lib/roles";
 import { getCurrentOneRepMaxes, getSessionDetail } from "@/lib/data";
@@ -32,7 +33,7 @@ const statusLabels = {
 
 export default async function SessionDetailPage({ params, searchParams }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
-  const { saved } = await searchParams;
+  const { saved, edit } = await searchParams;
   const userId = await requireUserId();
   const [detail, liftRecords] = await Promise.all([
     getSessionDetail(id, userId),
@@ -88,12 +89,27 @@ export default async function SessionDetailPage({ params, searchParams }: PagePr
 
       {detail.type === "WOD" ? (
         <section className="flex flex-col gap-4">
-          <form key={String(saved ?? "initial")} action={updateWodSession.bind(null, id)} className="flex flex-col gap-4">
-            <WodFields workout={detail.workout ?? ""} results={detail.results ?? ""} />
-            <SaveButton label="Save WOD" />
-            {saved && <p role="status" className="text-sm text-muted">WOD saved.</p>}
-            <SaveButton name="intent" value={detail.status === "PLANNED" ? "start" : detail.status === "IN_PROGRESS" ? "complete" : "reopen"} label={detail.status === "PLANNED" ? "Save and start workout" : detail.status === "IN_PROGRESS" ? "Save and complete workout" : "Save and reopen workout"} />
-          </form>
+          {detail.status === "COMPLETED" && edit !== "1" ? (
+            <>
+              <h2 className="text-sm font-semibold text-muted uppercase">Completed WOD</h2>
+              <div className="rounded border border-border bg-surface p-4">
+                <h3 className="mb-2 text-sm font-semibold">Workout</h3>
+                <p className="whitespace-pre-wrap break-words text-sm">{detail.workout}</p>
+              </div>
+              <div className="rounded border border-border bg-surface p-4">
+                <h3 className="mb-2 text-sm font-semibold">Results</h3>
+                <p className="whitespace-pre-wrap break-words text-sm">{detail.results || "No results recorded."}</p>
+              </div>
+              {saved && <p role="status" className="text-sm text-muted">Results saved.</p>}
+              <Link href={`/sessions/${id}?edit=1`} className="self-start text-sm font-semibold text-accent">Edit WOD and results</Link>
+            </>
+          ) : (
+            <form key={String(saved ?? "initial")} action={updateWodSession.bind(null, id)} className="flex flex-col gap-4">
+              <h2 className="text-sm font-semibold text-muted uppercase">{detail.status === "COMPLETED" ? "Edit WOD and results" : "Add results"}</h2>
+              <WodFields workout={detail.workout ?? ""} results={detail.results ?? ""} />
+              <SaveButton label="Save results" />
+            </form>
+          )}
         </section>
       ) : detail.status === "PLANNED" ? (
         <section className="flex flex-col gap-3">
