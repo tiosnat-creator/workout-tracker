@@ -124,7 +124,15 @@ model Lift {
   @@unique([userId, name])
 }
 
+enum SessionType {
+  OLYMPIC_LIFTING
+  WOD
+}
+
 model Session {
+  type             SessionType @default(OLYMPIC_LIFTING)
+  workout          String?
+  results          String?
   id               String            @id @default(cuid())
   userId           String
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)

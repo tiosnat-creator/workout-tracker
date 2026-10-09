@@ -46,13 +46,13 @@ export default async function SessionsPage() {
                   className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span>
-                    <span className="text-sm font-medium">{formatDate(s.date)}</span>
+                    <span className="text-sm font-medium">{formatDate(s.date)} · {s.type === "WOD" ? "WOD" : "Olympic Lifting"}</span>
                     <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[0.65rem] font-semibold uppercase text-muted">
                       {statusLabel}
                     </span>
                   </span>
                   <span className="text-xs text-muted">
-                    {s.status === "PLANNED"
+                    {s.type === "WOD" ? (s.results ? "Results recorded" : "Awaiting results") : s.status === "PLANNED"
                       ? plannedLifts.length > 0
                         ? plannedLifts.join(", ")
                         : "Plan is empty"
@@ -63,7 +63,7 @@ export default async function SessionsPage() {
                 </Link>
                 <ConfirmSubmitButton
                   action={deleteSession.bind(null, s.id)}
-                  confirmMessage={`Delete the session from ${formatDate(s.date)}? This removes all its logged sets too.`}
+                  confirmMessage={`Delete the session from ${formatDate(s.date)}? This removes its plan, workout, results and logged sets.`}
                   label="Delete"
                   className="shrink-0 text-xs text-muted hover:text-red-600"
                 />

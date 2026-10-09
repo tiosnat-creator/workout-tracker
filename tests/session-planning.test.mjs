@@ -53,6 +53,9 @@ test("new sessions are created as plans without overwriting workout notes", asyn
     userId: "signed-in-user",
     date: "2026-09-20T00:00:00.000Z",
     planNotes: "Heavy pulls",
+    type: "OLYMPIC_LIFTING",
+    workout: null,
+    results: null,
     status: "PLANNED",
   });
 });
@@ -65,6 +68,7 @@ test("planned exercises validate session and lift ownership before writing", asy
         assert.deepEqual(plain(where), {
           id: "session-1",
           userId: "signed-in-user",
+          type: "OLYMPIC_LIFTING",
           status: "PLANNED",
         });
         return { id: "session-1" };
@@ -190,4 +194,41 @@ test("session lifecycle transitions are atomic and scoped to the signed-in user"
   assert.equal(transition.data.status, "IN_PROGRESS");
   assert.equal(transition.data.completedAt, null);
   assert.ok(transition.data.startedAt instanceof Date);
+});
+
+test("WOD creation preserves multiline text and permits results later", async () => {
+  let created;
+  const actions = loadActions({ session: { create: async ({ data }) => { created = data; return { id: "wod" }; } } });
+  await assert.rejects(actions.createSession(form({ date: "2026-10-09", type: "WOD", workout: "3 rounds\n400 m run" })), /\/sessions\/wod/);
+  assert.equal(created.type, "WOD");
+  assert.equal(created.workout, "3 rounds\n400 m run");
+  assert.equal(created.results, null);
+  assert.equal(created.status, "PLANNED");
+});
+
+test("invalid types and empty WODs are rejected before writing", async () => {
+  const actions = loadActions({});
+  await assert.rejects(actions.createSession(form({ type: "OTHER" })), /Invalid session type/);
+  await assert.rejects(actions.createSession(form({ type: "WOD", workout: "  " })), /workout is required/);
+  await assert.rejects(actions.updateWodSession("wod", form({ workout: "\n" })), /workout is required/);
+});
+
+test("WOD results and lifecycle changes are saved together and scoped to owner and type", async () => {
+  let change;
+  const actions = loadActions({ session: { updateMany: async (args) => { change = args; return { count: 1 }; } } });
+  await assert.rejects(actions.updateWodSession("wod", form({ workout: "Run\nRow", results: "12:30\nScaled", intent: "complete" })), /\/sessions\/wod\?saved=/);
+  assert.deepEqual(plain(change.where), { id: "wod", userId: "signed-in-user", type: "WOD", status: "IN_PROGRESS" });
+  assert.equal(change.data.results, "12:30\nScaled");
+  assert.equal(change.data.status, "COMPLETED");
+  assert.ok(change.data.completedAt instanceof Date);
+});
+
+test("missing or other-user WODs cannot be updated", async () => {
+  const actions = loadActions({ session: { updateMany: async () => ({ count: 0 }) } });
+  await assert.rejects(actions.updateWodSession("other-user-session", form({ workout: "Run" })), /WOD session not found/);
+});
+
+test("WOD sessions cannot receive structured lift sets", async () => {
+  const actions = loadActions({ session: { findFirst: async () => ({ type: "WOD", status: "IN_PROGRESS" }) } });
+  await assert.rejects(actions.addSetEntry("wod", form({ liftId: "lift", weight: "50", reps: "3" })), /free-text results/);
 });

@@ -174,17 +174,43 @@ export async function createSession(formData: FormData) {
   const dateValue = String(formData.get("date") ?? "");
   const planNotes = String(formData.get("planNotes") ?? "").trim() || null;
 
+  const type = String(formData.get("type") ?? "OLYMPIC_LIFTING");
+  if (type !== "WOD" && type !== "OLYMPIC_LIFTING") throw new Error("Invalid session type.");
+  const workout = type === "WOD" ? String(formData.get("workout") ?? "").trim() : null;
+  const results = type === "WOD" ? String(formData.get("results") ?? "").trim() || null : null;
+  if (type === "WOD" && !workout) throw new Error("A workout is required.");
   const date = dateValue ? new Date(dateValue) : new Date();
   if (Number.isNaN(date.getTime())) {
     throw new Error("A valid date is required.");
   }
 
   const session = await prisma.session.create({
-    data: { userId, date, planNotes, status: "PLANNED" },
+    data: { userId, date, planNotes, type, workout, results, status: "PLANNED" },
   });
 
   revalidatePath("/sessions");
   redirect(`/sessions/${session.id}`);
+}
+
+export async function updateWodSession(sessionId: string, formData: FormData) {
+  const userId = await requireUserId();
+  const workout = String(formData.get("workout") ?? "").trim();
+  const results = String(formData.get("results") ?? "").trim() || null;
+  if (!workout) throw new Error("A workout is required.");
+  const intent = String(formData.get("intent") ?? "save");
+  if (!["save", "start", "complete", "reopen"].includes(intent)) throw new Error("Invalid WOD action.");
+  const status = intent === "start" ? "PLANNED" : intent === "complete" ? "IN_PROGRESS" : intent === "reopen" ? "COMPLETED" : undefined;
+  const transition = intent === "start" ? { status: "IN_PROGRESS" as const, startedAt: new Date(), completedAt: null }
+    : intent === "complete" ? { status: "COMPLETED" as const, completedAt: new Date() }
+    : intent === "reopen" ? { status: "IN_PROGRESS" as const, completedAt: null } : {};
+  const updated = await prisma.session.updateMany({
+    where: { id: sessionId, userId, type: "WOD", ...(status ? { status } : {}) },
+    data: { workout, results, ...transition },
+  });
+  if (!updated.count) throw new Error("WOD session not found.");
+  revalidatePath(`/sessions/${sessionId}`);
+  revalidatePath("/sessions");
+  redirect(`/sessions/${sessionId}?saved=${Date.now()}`);
 }
 
 export async function updateSession(sessionId: string, formData: FormData) {
@@ -242,7 +268,7 @@ function plannedExerciseValues(formData: FormData) {
 export async function addPlannedExercise(sessionId: string, formData: FormData) {
   const userId = await requireUserId();
   const session = await prisma.session.findFirst({
-    where: { id: sessionId, userId, status: "PLANNED" },
+    where: { id: sessionId, userId, type: "OLYMPIC_LIFTING", status: "PLANNED" },
   });
   if (!session) throw new Error("Only planned sessions can be changed.");
 
@@ -271,7 +297,7 @@ export async function updatePlannedExercise(
     where: {
       id: plannedExerciseId,
       sessionId,
-      session: { userId, status: "PLANNED" },
+      session: { userId, type: "OLYMPIC_LIFTING", status: "PLANNED" },
     },
   });
   if (!planned) throw new Error("Planned exercise not found.");
@@ -300,7 +326,7 @@ export async function deletePlannedExercise(
     where: {
       id: plannedExerciseId,
       sessionId,
-      session: { userId, status: "PLANNED" },
+      session: { userId, type: "OLYMPIC_LIFTING", status: "PLANNED" },
     },
   });
   if (!planned) throw new Error("Planned exercise not found.");
@@ -377,6 +403,7 @@ export async function addSetEntry(sessionId: string, formData: FormData) {
     where: { id: sessionId, userId },
   });
   if (!session) throw new Error("Session not found.");
+  if (session.type === "WOD") throw new Error("WOD sessions use free-text results.");
   if (session.status !== "IN_PROGRESS") {
     throw new Error("Start or reopen the workout before logging actual sets.");
   }

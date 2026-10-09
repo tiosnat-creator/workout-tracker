@@ -7,8 +7,11 @@ import {
   reopenSession,
   startSession,
   updateSession,
+  updateWodSession,
 } from "@/lib/actions";
 import { formatDate, formatWeight } from "@/lib/format";
+import { WodFields } from "@/components/WodFields";
+import { SaveButton } from "@/components/SaveButton";
 import { ActualSetForm } from "@/components/ActualSetForm";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { DateInput } from "@/components/DateInput";
@@ -27,8 +30,9 @@ const statusLabels = {
   COMPLETED: "Completed",
 } as const;
 
-export default async function SessionDetailPage({ params }: PageProps<"/sessions/[id]">) {
+export default async function SessionDetailPage({ params, searchParams }: PageProps<"/sessions/[id]">) {
   const { id } = await params;
+  const { saved } = await searchParams;
   const userId = await requireUserId();
   const [detail, liftRecords] = await Promise.all([
     getSessionDetail(id, userId),
@@ -56,6 +60,7 @@ export default async function SessionDetailPage({ params }: PageProps<"/sessions
                 {statusLabels[detail.status]}
               </span>
             </div>
+            <p className="mt-1 text-sm font-semibold text-accent">{detail.type === "WOD" ? "WOD" : "Olympic Lifting"}</p>
             {detail.planNotes && <p className="mt-1 text-sm text-muted">Plan: {detail.planNotes}</p>}
             {detail.notes && <p className="mt-1 text-sm text-muted">Workout: {detail.notes}</p>}
           </div>
@@ -77,11 +82,20 @@ export default async function SessionDetailPage({ params }: PageProps<"/sessions
             </div>
             <button type="submit" className="justify-self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground sm:col-span-2">Save session</button>
           </form>
-          <ConfirmSubmitButton action={deleteSession.bind(null, id)} confirmMessage={`Delete the session from ${formatDate(detail.date)}? This removes its plan and all logged sets.`} label="Delete session" className="self-start text-xs text-muted hover:text-red-600" />
+          <ConfirmSubmitButton action={deleteSession.bind(null, id)} confirmMessage={`Delete the session from ${formatDate(detail.date)}? This removes its plan, workout, results and logged sets.`} label="Delete session" className="self-start text-xs text-muted hover:text-red-600" />
         </div>
       </details>
 
-      {detail.status === "PLANNED" ? (
+      {detail.type === "WOD" ? (
+        <section className="flex flex-col gap-4">
+          <form key={String(saved ?? "initial")} action={updateWodSession.bind(null, id)} className="flex flex-col gap-4">
+            <WodFields workout={detail.workout ?? ""} results={detail.results ?? ""} />
+            <SaveButton label="Save WOD" />
+            {saved && <p role="status" className="text-sm text-muted">WOD saved.</p>}
+            <SaveButton name="intent" value={detail.status === "PLANNED" ? "start" : detail.status === "IN_PROGRESS" ? "complete" : "reopen"} label={detail.status === "PLANNED" ? "Save and start workout" : detail.status === "IN_PROGRESS" ? "Save and complete workout" : "Save and reopen workout"} />
+          </form>
+        </section>
+      ) : detail.status === "PLANNED" ? (
         <section className="flex flex-col gap-3">
           <div>
             <h2 className="text-sm font-semibold text-muted uppercase">Session plan</h2>
