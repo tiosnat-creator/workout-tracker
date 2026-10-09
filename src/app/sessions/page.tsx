@@ -10,7 +10,7 @@ export default async function SessionsPage() {
   const sessions = await getSessions(userId);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold tracking-tight uppercase">
           Sessions
@@ -26,10 +26,18 @@ export default async function SessionsPage() {
       {sessions.length === 0 ? (
         <p className="text-sm text-muted">No sessions logged yet.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-1.5">
           {sessions.map((s) => {
             const actualLifts = [...new Set(s.setEntries.map((e) => e.lift.name))];
             const plannedLifts = s.plannedExercises.map((e) => e.lift.name);
+            const workoutSummary = s.type === "WOD"
+              ? (s.workout?.replace(/\s+/g, " ").trim() || "No workout recorded")
+              : s.status === "PLANNED"
+                ? plannedLifts.join(", ") || "Plan is empty"
+                : actualLifts.length > 0
+                  ? `${actualLifts.join(", ")} · ${s.setEntries.length} sets`
+                  : "No sets logged";
+            const resultSummary = s.results?.replace(/\s+/g, " ").trim();
             const statusLabel =
               s.status === "PLANNED"
                 ? "Planned"
@@ -39,33 +47,28 @@ export default async function SessionsPage() {
             return (
               <li
                 key={s.id}
-                className="flex items-center gap-2 rounded border border-border bg-surface px-3 py-2 hover:border-accent"
+                className="flex h-20 items-center gap-2 rounded border border-border bg-surface px-2.5 py-2 hover:border-accent"
               >
                 <Link
                   href={`/sessions/${s.id}`}
-                  className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex min-w-0 flex-1 flex-col gap-0.5"
                 >
-                  <span>
-                    <span className="text-sm font-medium">{formatDate(s.date)} · {s.type === "WOD" ? "WOD" : "Olympic Lifting"}</span>
-                    <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[0.65rem] font-semibold uppercase text-muted">
-                      {statusLabel}
+                  <span className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="truncate text-xs font-semibold">{formatDate(s.date)} · {s.type === "WOD" ? "WOD" : "Olympic Lifting"}</span>
+                    <span className="shrink-0 text-[0.65rem] font-medium text-muted">{statusLabel}</span>
+                  </span>
+                  <span className="truncate text-xs" title={workoutSummary}>{workoutSummary}</span>
+                  {s.type === "WOD" && (
+                    <span className="truncate text-xs text-muted" title={resultSummary || undefined}>
+                      {resultSummary ? `Result / time: ${resultSummary}` : "Awaiting results"}
                     </span>
-                  </span>
-                  <span className="text-xs text-muted">
-                    {s.type === "WOD" ? (s.results ? "Results recorded" : "Awaiting results") : s.status === "PLANNED"
-                      ? plannedLifts.length > 0
-                        ? plannedLifts.join(", ")
-                        : "Plan is empty"
-                      : actualLifts.length > 0
-                        ? `${actualLifts.join(", ")} · ${s.setEntries.length} set${s.setEntries.length === 1 ? "" : "s"}`
-                        : "No sets logged"}
-                  </span>
+                  )}
                 </Link>
                 <ConfirmSubmitButton
                   action={deleteSession.bind(null, s.id)}
                   confirmMessage={`Delete the session from ${formatDate(s.date)}? This removes its plan, workout, results and logged sets.`}
                   label="Delete"
-                  className="shrink-0 text-xs text-muted hover:text-red-600"
+                  className="min-h-8 shrink-0 px-1 text-[0.65rem] text-muted hover:text-red-600"
                 />
               </li>
             );
