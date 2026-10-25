@@ -17,6 +17,8 @@ model User {
   sessions     Session[]
   oneRepMaxes  OneRepMaxEntry[]
   bodyWeights  BodyWeightEntry[]
+  mobileTokens MobileToken[]
+  mobileReceipts MobileReceipt[]
 }
 
 model Category {
@@ -91,4 +93,30 @@ model BodyWeightEntry {
   date      DateTime
   notes     String?
   createdAt DateTime @default(now())
+}
+
+// Store only a digest of the bearer token. Signing out revokes the device token.
+model MobileToken {
+  digest    String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+// Receipts outlive deleted workouts: a delayed retry must not resurrect one.
+model MobileReceipt {
+  userId      String
+  mutationId  String
+  payloadHash String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  @@id([userId, mutationId])
+}
+
+model MobileLoginLimit {
+  key       String @id
+  attempts  Int
+  resetAt   DateTime
 }
