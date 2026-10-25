@@ -61,7 +61,7 @@ The generated project currently uses Expo SDK 58. Expo Go must support this exac
 
 ## Installable APK and Play Store bundle
 
-`eas.json` includes an internal preview APK and a production AAB profile. Set an owned, permanent Android application ID before the first distributed build. Configure the Expo account/project (`eas login` / `eas build:configure`) in `apps/mobile`; the Expo project ID and Android package ID are deliberately not invented here.
+`eas.json` includes an internal preview APK and a production AAB profile. The app is linked to `@tiosnat89s-team/workout-tracker` (project `e72015a9-cb48-4466-8637-15d90e6608d9`) with Android package `com.askr.workouttracker`. Expo manages the signing key. The repository-root `.easignore` includes only `apps/mobile` and `packages/shared` in cloud build uploads. React DOM is pinned to the Expo-compatible version to avoid peer dependency conflicts during clean cloud installs.
 
 ```sh
 cd apps/mobile
@@ -70,7 +70,7 @@ npx eas-cli@latest build:configure
 npx eas-cli@latest build --platform android --profile preview
 ```
 
-An EAS preview APK includes its JavaScript bundle and can launch without Metro. Install it on a physical phone or emulator. No cloud build, signing-key creation, store submission or deployment has been performed yet. Production later uses `--profile production`; distribution then requires the Play developer account, store metadata/privacy disclosures, device testing and Google review.
+An EAS preview APK includes its JavaScript bundle and can launch without Metro. Install it on a physical phone or emulator. An internal cloud build and Expo-managed signing key have been configured. No store submission or production deployment has been performed. Production later uses `--profile production`; distribution then requires the Play developer account, store metadata/privacy disclosures, device testing and Google review.
 
 ## Acceptance test on Android
 
@@ -113,3 +113,11 @@ The integration test refuses non-localhost databases or other database names and
 - Full repository lint: blocked by the existing `react-hooks/set-state-in-effect` error in `src/components/DateInput.tsx`.
 - Mobile dependency audit: 5 high findings in the Expo CLI dependency chain (`node-forge` and `zod`, including their parent packages). The suggested automatic fix downgrades Expo to SDK 44; it was not applied. Track compatible upstream fixes before release. These findings are tooling-related and are not proof of an exploitable app path.
 - Native emulator/phone testing and APK/AAB compilation: still required; no Android SDK/emulator was found on this workstation.
+
+## Preview rollout — 25 October 2026
+
+- Code is on GitHub branch `codex/android-preview`; production remains unchanged.
+- First EAS build failed during installation because the automatically selected React DOM peer did not match React. This was fixed by explicitly adding Expo-compatible React DOM and verifying `npm ci`, TypeScript and lint.
+- Replacement APK build: https://expo.dev/accounts/tiosnat89s-team/projects/workout-tracker/builds/879418f9-37ab-4236-8f6b-bdfdc619a425
+- Upsun preview deployment is blocked by the existing GitHub source integration returning HTTP 401 when fetching the repository. Its access token needs renewal in Upsun before the new branch can be activated. The local Upsun and GitHub CLI sessions work; this is a separate integration credential.
+- Use a fresh preview database for testing. Do not point the app at production until the mobile API has been deliberately deployed there.
