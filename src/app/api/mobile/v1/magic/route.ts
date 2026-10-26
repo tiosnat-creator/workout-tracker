@@ -1,4 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto';
+import { authOrigin } from '@/lib/auth-origin';
+import { admitAuthRequest } from '@/lib/auth-rate-limit';
 import { prisma } from '@/lib/prisma';
 import { hashEmail } from '@/lib/email-crypto';
 import { sendMagicLinkEmail, isMagicLinkEmailConfigured } from '@/lib/mail';
@@ -17,29 +19,23 @@ export async function POST(request: Request) {
     }
     if (typeof input.verifier !== 'string' || !/^[a-f0-9-]{64,128}$/.test(input.verifier)) throw new ValidationError('Invalid device request.');
     if (input.action === 'request') {
-      if (!isMagicLinkEmailConfigured() || !process.env.MOBILE_AUTH_ORIGIN) return json({ error: 'Email sign-in is not configured on this server.' }, 503);
-      const origin = new URL(process.env.MOBILE_AUTH_ORIGIN);
-      if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid origin configuration');
+      if (!isMagicLinkEmailConfigured()) return json({ error: 'Email sign-in is not configured on this server.' }, 503);
+      const origin = authOrigin();
       if (typeof input.email !== 'string' || input.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) throw new ValidationError('Enter a valid email address.');
       const emailHash = hashEmail(input.email);
-      const key = digest(`mobile-magic:${emailHash}`);
-      const limits = await prisma.$queryRaw<{ attempts: number }[]>`
-        INSERT INTO "MobileLoginLimit" ("key", "attempts", "resetAt") VALUES (${key}, 1, NOW() + INTERVAL '15 minutes')
-        ON CONFLICT ("key") DO UPDATE SET
-          "attempts" = CASE WHEN "MobileLoginLimit"."resetAt" <= NOW() THEN 1 ELSE "MobileLoginLimit"."attempts" + 1 END,
-          "resetAt" = CASE WHEN "MobileLoginLimit"."resetAt" <= NOW() THEN NOW() + INTERVAL '15 minutes' ELSE "MobileLoginLimit"."resetAt" END
-        RETURNING "attempts"`;
       const id = randomBytes(24).toString('hex'), token = randomBytes(32).toString('hex');
+      const response = { id, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() };
+      // An opaque response preserves account privacy without persisting rejected requests.
+      if (!await admitAuthRequest(`mobile-magic:${emailHash}`, 3, 900)) return json(response);
       const user = await prisma.user.findUnique({ where: { emailHash } });
-      await prisma.mobileMagicChallenge.deleteMany({ where: { expiresAt: { lt: new Date() } } });
       // Same response for unknown, disabled and rate-limited accounts.
-      const eligible = user && !user.disabledAt && !!user.onboardingCompletedAt && limits[0].attempts <= 3;
+      const eligible = user && !user.disabledAt && !!user.onboardingCompletedAt;
       await prisma.mobileMagicChallenge.create({ data: { id, tokenHash: digest(token), verifierHash: digest(input.verifier), userId: eligible ? user.id : null, expiresAt: new Date(Date.now() + 15 * 60 * 1000) } });
       if (eligible) {
-        try { await sendMagicLinkEmail(input.email.trim(), `${origin.origin}/login/mobile#token=${token}`); }
+        try { await sendMagicLinkEmail(input.email.trim(), `${origin}/login/mobile#token=${token}`); }
         catch { await prisma.mobileMagicChallenge.delete({ where: { id } }); return json({ error: 'Could not send the sign-in email. Try again later.' }, 503); }
       }
-      return json({ id, expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
+      return json(response);
     }
     if (input.action !== 'claim' || typeof input.id !== 'string' || !/^[a-f0-9]{48}$/.test(input.id)) throw new ValidationError('Invalid sign-in request.');
     const challenge = await prisma.mobileMagicChallenge.findUnique({ where: { id: input.id } });

@@ -8,7 +8,7 @@ applications:
         relationships:
             postgresql:
                 service: postgresql
-                endpoint: postgresql
+                endpoint: app202610
 
         variables:
             env:
@@ -17,11 +17,11 @@ applications:
 
         hooks:
             build: |
-                set -eux
+                set -eu
                 npm ci
                 npm run build
             deploy: |
-                set -eux
+                set -eu
                 export DATABASE_URL="postgresql://${POSTGRESQL_USERNAME}:${POSTGRESQL_PASSWORD}@${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_PATH}"
                 npx prisma migrate deploy
                 npx tsx prisma/seed.ts
@@ -38,6 +38,14 @@ applications:
 services:
     postgresql:
         type: postgresql:16
+        configuration:
+            databases:
+                - main
+            endpoints:
+                app202610:
+                    default_database: main
+                    privileges:
+                        main: admin
 
 routes:
     "https://{default}/":

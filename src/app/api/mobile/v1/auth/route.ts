@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { admitAuthRequest } from '@/lib/auth-rate-limit';
 import { prisma } from '@/lib/prisma';
 import { digest, mobileIdentity, publicMobileUser } from '@/lib/mobile/auth';
 import { json, readJson } from '@/lib/mobile/http';
@@ -16,16 +17,7 @@ export async function POST(request: Request) {
       return json({ error: 'Enter your email and password.' }, 400);
     }
     const email = input.email.trim();
-    // Database-backed and atomic across Upsun instances. Never trust caller-supplied IP headers.
-    const key = digest(email.toLowerCase());
-    const limits = await prisma.$queryRaw<{ attempts: number }[]>`
-      INSERT INTO "MobileLoginLimit" ("key", "attempts", "resetAt")
-      VALUES (${key}, 1, NOW() + INTERVAL '15 minutes')
-      ON CONFLICT ("key") DO UPDATE SET
-        "attempts" = CASE WHEN "MobileLoginLimit"."resetAt" <= NOW() THEN 1 ELSE "MobileLoginLimit"."attempts" + 1 END,
-        "resetAt" = CASE WHEN "MobileLoginLimit"."resetAt" <= NOW() THEN NOW() + INTERVAL '15 minutes' ELSE "MobileLoginLimit"."resetAt" END
-      RETURNING "attempts"`;
-    if (limits[0].attempts > 10) return json({ error: 'Too many attempts. Try again in 15 minutes.' }, 429);
+    if (!await admitAuthRequest(`password:${digest(email.toLowerCase())}`, 10, 900)) return json({ error: 'Too many attempts. Try again later.' }, 429);
     const user = await prisma.user.findUnique({ where: { email } });
     const valid = await bcrypt.compare(input.password, user?.passwordHash ?? dummyHash);
     if (!user || user.disabledAt || !valid) return json({ error: 'Invalid email or password.' }, 401);
