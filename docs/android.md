@@ -141,3 +141,11 @@ Successful internal preview APK: https://expo.dev/artifacts/eas/mvBVWEorpFBkHZzx
 4. Change the same lift on the website while an offline phone edit is pending. Confirm sync reports a conflict and the website edit survives; review/discard the local edit in Account & sync.
 5. Request an email link, open and confirm it, return to the app. Reopening the email must not authorize a different phone. Verify sign-out and web “log out everywhere” revoke the device token.
 6. Confirm copied production accounts are not used for destructive tests. Native keyboard, back navigation, font scaling and visual QA are still needed on an installed build.
+
+## 26 October expanded preview release
+
+- Preview branch includes web main through `a129496`; expanded implementation commit: `1f4b59b`.
+- Upsun activity `z662b745xmwl2` completed successfully. Live test-account login and expanded snapshot passed; magic-link request/claim routes accepted the expected generic unknown-account flow without sending email.
+- Local validation: 37 web regression tests, 9 sync/unit tests and 2 API integration scenarios passed; root/mobile TypeScript, root/mobile lint, production web build and Android Hermes export passed.
+- Android version 1.1.0, versionCode 2, signed with the existing key. EAS build: https://expo.dev/accounts/tiosnat89s-team/projects/workout-tracker/builds/3f5f8ba5-752d-4f27-9817-55686bb04a09 (queued at handoff; build completion is not yet verified).
+- Install the new APK over the old app; do not uninstall if you have unsynced data. Keep using the preview origin. Real email delivery and installed-device interaction/offline acceptance still need verification.
