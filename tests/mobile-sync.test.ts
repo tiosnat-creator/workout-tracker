@@ -64,3 +64,22 @@ test('accepted workout deleted on website is not resurrected by stale local copy
   await synchronize(f.store, { push: async () => { throw new Error('must not upload'); }, pull: async () => snapshot });
   assert.equal(f.rows().length, 0); assert.equal(f.cached()?.sessions.length, 0);
 });
+
+test('manual tests and entity changes project offline without mutating downloaded data', async () => {
+  const { parseMobileMutation, projectSnapshot } = await import('../packages/shared/mobile');
+  const manual = parseMobileMutation({ kind: 'manual-1rm', mutationId: id, entry: { id, liftId: 'lift-a', weight: 100, date: '2026-10-26T12:00:00.000Z', notes: 'Test' } });
+  const category = parseMobileMutation({ kind: 'change', mutationId: id, entity: 'categories', id, before: null, after: { id, name: 'Squat', isUncategorized: false, dashboardOrder: 2 } });
+  const view = projectSnapshot(snapshot, [manual, category]);
+  assert.equal(view.oneRepMaxes?.[0].weight, 100); assert.equal(view.categories[0].name, 'Squat');
+  assert.equal(snapshot.categories.length, 0);
+  assert.throws(() => parseMobileMutation({ ...manual, entry: { id, liftId: 'lift-a', weight: 0, date: 'bad', notes: null } }));
+  assert.throws(() => parseMobileMutation({ kind: 'change', mutationId: id, entity: 'users', id, before: null, after: {} }));
+});
+test('queued deletion and category reassignment remain visible while offline', async () => {
+  const { projectSnapshot, parseMobileMutation } = await import('../packages/shared/mobile');
+  const base: Snapshot = { ...snapshot, categories: [{ id: 'fallback', name: 'Uncategorized', isUncategorized: true }, { id, name: 'Old' }], lifts: [{ id: 'lift-a', name: 'Squat', categoryId: id, archived: false }], sessions: [mutation().workout] };
+  const change = parseMobileMutation({ kind: 'change', entity: 'categories', mutationId: id, id, before: base.categories[1], after: null });
+  const deleted = parseMobileMutation({ kind: 'change', entity: 'sessions', mutationId: id, id, before: base.sessions[0], after: null });
+  const view = projectSnapshot(base, [change, deleted]);
+  assert.equal(view.sessions.length, 0); assert.equal(view.lifts[0].categoryId, 'fallback');
+});

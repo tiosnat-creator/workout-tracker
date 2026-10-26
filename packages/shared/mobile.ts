@@ -1,6 +1,6 @@
 /** Create-only mutations never overwrite web edits. Legacy workout payloads remain valid. */
-export type WorkoutSet = { liftId: string; weight: number; reps: number; rpe: number | null; notes: string | null };
-export type Workout = { id: string; date: string; notes: string | null; setEntries: WorkoutSet[] };
+export type WorkoutSet = { id?: string; plannedExerciseId?: string | null; liftId: string; weight: number; reps: number; rpe: number | null; notes: string | null };
+export type Workout = { status?: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED'; id: string; date: string; notes: string | null; setEntries: WorkoutSet[] };
 export type Snapshot = {
   user: { id: string; email: string; name: string | null };
   lifts: Lift[];
@@ -98,7 +98,11 @@ export function parseEntity<K extends keyof EntityMap>(entity: K, value: unknown
     const uuid = '00000000-0000-4000-8000-000000000000';
     const empty = Array.isArray(row.setEntries) && row.setEntries.length === 0;
     const workout = parseMutation({ mutationId: uuid, workout: { ...row, id: uuid, setEntries: empty ? [{ liftId: 'validation', weight: 0, reps: 1, rpe: null, notes: null }] : row.setEntries } }).workout;
-    result = { ...workout, id, setEntries: empty ? [] : workout.setEntries };
+    if (row.status !== undefined && !['PLANNED', 'IN_PROGRESS', 'COMPLETED'].includes(String(row.status))) throw new ValidationError('Invalid session status.');
+    result = { ...workout, id, status: (row.status ?? 'COMPLETED') as Workout['status'], setEntries: empty ? [] : workout.setEntries.map((set, i) => {
+      const original = record((row.setEntries as unknown[])[i]);
+      return { ...set, ...(original.id === undefined ? {} : { id: text(original.id, 80) }), ...(original.plannedExerciseId === undefined ? {} : { plannedExerciseId: original.plannedExerciseId === null ? null : text(original.plannedExerciseId, 80) }) };
+    }) };
   } else throw new ValidationError('Unknown entry type.');
   return result as EntityMap[K];
 }
@@ -115,7 +119,7 @@ function parseChange(input: Record<string, unknown>): ChangeMutation {
 }
 /** Apply queued changes to the downloaded snapshot without hiding offline work. */
 export function projectSnapshot(snapshot: Snapshot, mutations: MobileMutation[]): Snapshot {
-  let view = structuredClone(snapshot);
+  let view: Snapshot = JSON.parse(JSON.stringify(snapshot));
   for (const mutation of mutations) {
     if (isWorkoutMutation(mutation)) {
       view.sessions = [mutation.workout, ...view.sessions.filter((w) => w.id !== mutation.workout.id)];

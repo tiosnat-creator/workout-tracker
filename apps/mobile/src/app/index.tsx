@@ -17,7 +17,7 @@ export default function Home() {
         <View style={styles.row}><Text style={styles.eyebrow}>WORKOUT TRACKER</Text><Button secondary title="Account" onPress={() => router.push('/account')} /></View>
         <View style={{ gap: 6 }}><Text style={styles.title}>Keep showing up.</Text><Text style={styles.muted}>Your next session starts here, {account.user.name?.split(' ')[0] || 'lifter'}.</Text></View>
         <View style={{ gap: 10 }}><Button secondary title="Calculator" onPress={() => router.push('/calculator')} /><Button secondary title="Body weight" onPress={() => router.push('/bodyweight')} /><Button secondary title="Manage lifts & categories" onPress={() => router.push('/manage')} /></View>
-        <Text style={styles.heading}>Your 1RMs</Text>
+        <Text style={styles.heading}>Your 1RMs</Text><Button secondary title="Arrange dashboard" onPress={() => router.push('/reorder')} />
         {view?.categories.slice().sort((a, b) => (a.dashboardOrder ?? 0) - (b.dashboardOrder ?? 0)).map((c) => {
           const group = view.lifts.filter((l) => l.categoryId === c.id && !l.archived).sort((a, b) => (a.dashboardOrder ?? 0) - (b.dashboardOrder ?? 0));
           return !group.length ? null : <Card key={c.id}><Text style={styles.eyebrow}>{c.name}</Text>{group.map((l) => <Button secondary key={l.id} title={`${l.name} · ${bestMax(view, l.id) ?? '—'} kg`} onPress={() => router.push({ pathname: '/lifts/[id]', params: { id: l.id } })} />)}</Card>;

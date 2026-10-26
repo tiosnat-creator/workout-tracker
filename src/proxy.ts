@@ -9,6 +9,9 @@ import type { NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Mobile routes enforce bearer authentication internally.
+  if (pathname.startsWith("/api/mobile/v1/")) return NextResponse.next();
+
   // /login and /login/verify must stay reachable while signed out — they
   // ARE the sign-in flow. Server Actions post back to the route they're
   // used on, so this also covers requestMagicLink/consumeMagicLink.

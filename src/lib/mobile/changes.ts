@@ -9,7 +9,13 @@ export async function applyChange(tx: Prisma.TransactionClient, userId: string, 
     : entity === 'bodyWeights' ? await tx.bodyWeightEntry.findFirst({ where: { id, userId } })
     : await tx.session.findFirst({ where: { id, userId }, include: { setEntries: { orderBy: { order: 'asc' } } } });
   const serialized = current ? JSON.parse(JSON.stringify(current)) : null;
-  if (JSON.stringify(serialized ? parseEntity(entity, serialized) : null) !== JSON.stringify(before)) {
+  function comparable(value: unknown) {
+    if (!value) return null;
+    const parsed = parseEntity(entity, value);
+    if ('setEntries' in parsed) return { ...parsed, setEntries: parsed.setEntries.map((set) => ({ liftId: set.liftId, weight: set.weight, reps: set.reps, rpe: set.rpe, notes: set.notes, plannedExerciseId: set.plannedExerciseId ?? null })) };
+    return parsed;
+  }
+  if (JSON.stringify(comparable(serialized)) !== JSON.stringify(comparable(before))) {
     throw new ChangeConflict('This entry changed on the website. Review the saved change in Account & sync.');
   }
   if (entity === 'lifts') {
@@ -32,9 +38,14 @@ export async function applyChange(tx: Prisma.TransactionClient, userId: string, 
     else if (before) await tx.bodyWeightEntry.update({ where: { id }, data: { ...after, date: new Date(after.date) } });
     else await tx.bodyWeightEntry.create({ data: { ...after, userId, date: new Date(after.date) } });
   } else {
+    if ((before?.status && before.status !== 'COMPLETED') || (after?.status && after.status !== 'COMPLETED')) throw new ChangeConflict('Planned and in-progress sessions must be managed on the website for now.');
     if (!after) { await tx.session.delete({ where: { id } }); return; }
     const liftIds = [...new Set(after.setEntries.map((s) => s.liftId))];
     if (await tx.lift.count({ where: { id: { in: liftIds }, userId } }) !== liftIds.length) throw new ChangeConflict('A lift is no longer available.');
+    for (const set of after.setEntries) {
+      const original = current && 'setEntries' in current ? current.setEntries.find((s) => s.id === set.id) : undefined;
+      if ((set.id && !original) || (set.plannedExerciseId && set.plannedExerciseId !== original?.plannedExerciseId)) throw new ChangeConflict('Set identity changed. Sync and try again.');
+    }
     const data = { date: new Date(after.date), notes: after.notes, setEntries: { create: after.setEntries.map((set, order) => ({ ...set, order })) } };
     if (before) {
       await tx.setEntry.deleteMany({ where: { sessionId: id } });

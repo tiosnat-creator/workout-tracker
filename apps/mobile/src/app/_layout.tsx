@@ -11,6 +11,7 @@ export default function Layout() {
     <Stack.Screen name="workout" options={{ title: 'Your workout' }} />
     <Stack.Screen name="calculator" options={{ title: 'Calculator' }} />
     <Stack.Screen name="bodyweight" options={{ title: 'Body weight' }} />
+    <Stack.Screen name="reorder" options={{ title: 'Arrange dashboard' }} />
     <Stack.Screen name="manage" options={{ title: 'Manage library' }} />
     <Stack.Screen name="sessions/[id]" options={{ title: 'Workout details' }} />
     <Stack.Screen name="account" options={{ title: 'Account & sync' }} />

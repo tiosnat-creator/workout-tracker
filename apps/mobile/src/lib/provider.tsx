@@ -66,19 +66,27 @@ function useTrackerState() {
     const timer = setInterval(() => { if (AppState.currentState === 'active') void sync(); }, 30000);
     return () => { mounted = false; network.remove(); foreground.remove(); clearInterval(timer); };
   }, [account, sync]);
+  async function acceptLogin(active: Account) {
+      if (accountRef.current && accountKey(accountRef.current) !== accountKey(active)) {
+        await api(active, 'auth', undefined, 'DELETE');
+        throw new Error('Sign in to the same account to preserve your offline entries.');
+      }
+      await SecureStore.setItemAsync(sessionKey, JSON.stringify(active));
+      accountRef.current = active; setAccount(active); setNeedsLogin(false); await refresh();
+  }
+  async function completeEmailLogin(active: Account) {
+    if (lock.current) throw new Error('Wait for sync to finish, then try again.');
+    lock.current = true; setBusy(true);
+    try { await acceptLogin(active); }
+    finally { lock.current = false; setBusy(false); }
+  }
   async function login(server: string, email: string, password: string) {
     if (lock.current) throw new Error('Wait for the current sync to finish.');
     lock.current = true; setBusy(true);
     try {
       const origin = serverOrigin(server);
       const reply = await request<Omit<Account, 'origin'>>(origin, 'auth', undefined, { email, password });
-      const active: Account = { ...reply, origin };
-      if (accountRef.current && accountKey(accountRef.current) !== accountKey(active)) {
-        await api(active, 'auth', undefined, 'DELETE');
-        throw new Error('Sign in to the same account to preserve your offline workouts.');
-      }
-      await SecureStore.setItemAsync(sessionKey, JSON.stringify(active));
-      accountRef.current = active; setAccount(active); setNeedsLogin(false); await refresh();
+      await acceptLogin({ ...reply, origin });
     } finally { lock.current = false; setBusy(false); }
   }
   async function logout() {
@@ -110,7 +118,7 @@ function useTrackerState() {
     finally { lock.current = false; }
   }
   const view = local.snapshot ? projectSnapshot(local.snapshot, local.pending.map((p) => p.mutation)) : null;
-  return { view, save, discardPending, account, local, ready, busy, message, needsLogin, refresh, sync, login, logout };
+  return { completeEmailLogin, view, save, discardPending, account, local, ready, busy, message, needsLogin, refresh, sync, login, logout };
 }
 const TrackerContext = createContext<ReturnType<typeof useTrackerState> | null>(null);
 export function TrackerProvider({ children }: { children: ReactNode }) {

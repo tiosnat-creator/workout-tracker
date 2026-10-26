@@ -5,13 +5,14 @@ import * as Crypto from 'expo-crypto';
 import { useTracker } from '../lib/provider';
 import { accountKey, parseMutation, type Workout } from '../lib/types';
 import { discardDraft, finishDraft, readLocal, saveDraft } from '../lib/store';
-import { dateInput } from '../lib/training';
+import { dateInput, today } from '../lib/training';
 import { Button, Card, colors, Field, styles } from '../components/ui';
 export default function WorkoutScreen() {
   const tracker = useTracker();
   const params = useLocalSearchParams<{ liftId?: string }>();
   const [draft, setDraft] = useState<Workout | null>(null);
   const [liftId, setLiftId] = useState(typeof params.liftId === 'string' ? params.liftId : '');
+  const [date, setDate] = useState(today()), [notes, setNotes] = useState('');
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [rpe, setRpe] = useState('');
@@ -28,7 +29,7 @@ export default function WorkoutScreen() {
       const stored = await readLocal(key);
       const workout = stored.draft ?? { id: Crypto.randomUUID(), date: new Date().toISOString(), notes: null, setEntries: [] };
       await saveDraft(key, workout);
-      if (alive) setDraft(workout);
+      if (alive) { setDraft(workout); setDate(workout.date.slice(0, 10)); setNotes(workout.notes ?? ''); }
       await refresh();
     })().catch(() => setError('Unable to open your saved workout. Please try again.'));
     return () => { alive = false; };
@@ -43,7 +44,7 @@ export default function WorkoutScreen() {
     if (!draft || !key) return;
     await perform(async () => {
       if (!liftId || !weight.trim() || !reps.trim()) throw new Error('Choose a lift and enter weight and reps.');
-      const next = { ...draft, setEntries: [...draft.setEntries, { liftId, weight: Number(weight.replace(',', '.')), reps: Number(reps), rpe: rpe.trim() ? Number(rpe.replace(',', '.')) : null, notes: null }] };
+      const next = { ...draft, date: dateInput(date), notes: notes.trim() || null, setEntries: [...draft.setEntries, { liftId, weight: Number(weight.replace(',', '.')), reps: Number(reps), rpe: rpe.trim() ? Number(rpe.replace(',', '.')) : null, notes: null }] };
       parseMutation({ mutationId: next.id, workout: next });
       await saveDraft(key, next); setDraft(next); await refresh();
     });
@@ -51,7 +52,7 @@ export default function WorkoutScreen() {
   async function finish() {
     if (!draft || !key) return;
     await perform(async () => {
-      await finishDraft(key, parseMutation({ mutationId: draft.id, workout: draft }));
+      await finishDraft(key, parseMutation({ mutationId: draft.id, workout: { ...draft, date: dateInput(date), notes: notes.trim() || null } }));
       await refresh(); router.replace('/'); void tracker.sync();
     });
   }
@@ -59,8 +60,8 @@ export default function WorkoutScreen() {
     <Text style={styles.eyebrow}>ONE SET AT A TIME</Text><Text style={styles.title}>Let’s get stronger.</Text>
     <Text style={styles.muted}>Tap “Add set” to save it on this phone immediately, even offline.</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    {draft && <Card><Field label="Workout date (YYYY-MM-DD)" defaultValue={draft.date.slice(0, 10)} onEndEditing={(e) => { const value = e.nativeEvent.text; void perform(async () => { if (!key) return; const next = { ...draft, date: dateInput(value) }; await saveDraft(key, next); setDraft(next); await refresh(); }); }} />
-      <Field label="Workout notes (optional)" defaultValue={draft.notes ?? ''} maxLength={2000} onEndEditing={(e) => { const value = e.nativeEvent.text; void perform(async () => { if (!key) return; const next = { ...draft, notes: value.trim() || null }; await saveDraft(key, next); setDraft(next); await refresh(); }); }} /></Card>}
+    {draft && <Card><Field label="Workout date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
+      <Field label="Workout notes (optional)" value={notes} onChangeText={setNotes} maxLength={2000} /></Card>}
     <Card><Text style={styles.heading}>Choose your lift</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {lifts.filter((l) => !l.archived).map((lift) => <Pressable key={lift.id} accessibilityRole="button" accessibilityState={{ selected: liftId === lift.id }} onPress={() => setLiftId(lift.id)} style={{ padding: 14, borderRadius: 12, backgroundColor: lift.id === liftId ? colors.teal : colors.pale }}><Text style={{ color: lift.id === liftId ? '#FFFFFF' : colors.teal, fontWeight: '600' }}>{lift.name}</Text></Pressable>)}
     </View><View style={{ flexDirection: 'row', gap: 12 }}><View style={{ flex: 1 }}><Field label="Weight (kg)" value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="60" /></View><View style={{ flex: 1 }}><Field label="Reps" value={reps} onChangeText={setReps} keyboardType="number-pad" placeholder="5" /></View></View>

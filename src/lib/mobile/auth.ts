@@ -1,10 +1,15 @@
 import { createHash } from 'node:crypto';
+import { decryptEmail } from '@/lib/email-crypto';
 import { prisma } from '@/lib/prisma';
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 export async function mobileIdentity(request: Request) {
   const match = /^Bearer ([a-f0-9]{64})$/.exec(request.headers.get('authorization') ?? '');
   if (!match) return null;
   const token = await prisma.mobileToken.findUnique({ where: { digest: digest(match[1]) }, include: { user: true } });
-  if (!token || token.expiresAt <= new Date()) return null;
+  if (!token || token.expiresAt <= new Date() || token.user.disabledAt) return null;
   return { digest: token.digest, user: token.user };
+}
+
+export function publicMobileUser(user: { id: string; email: string | null; emailCiphertext: string | null; name: string | null }) {
+  return { id: user.id, email: user.emailCiphertext ? decryptEmail(user.emailCiphertext) : user.email ?? '', name: user.name };
 }

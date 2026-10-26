@@ -1,33 +1,40 @@
-# Android: first milestone
+# Android preview
 
 The native Expo / React Native app is in `apps/mobile`. The existing Next.js app remains at the repository root to preserve Upsun's current build and deploy commands. Shared, platform-neutral API types and input validation live in `packages/shared/mobile.ts`. The mobile app has a separate package manifest and lockfile so its React Native toolchain does not affect the web build.
 
-## Implemented
+## Implemented in the 1.1 preview
 
-- Existing email/password account sign-in over HTTPS, using revocable device tokens in SecureStore (passwords are not saved).
-- Download that account's categories, lifts and complete workout history into SQLite.
-- Native workout entry: choose a lift, enter kg/reps/optional RPE, add/remove sets, finish a workout.
-- Added sets persist as a draft immediately; finished workouts enter a durable SQLite outbox atomically. Unsubmitted text fields are not saved until “Add set”.
-- Sync on launch, reconnect, foreground, manual request and every 30 seconds while foregrounded.
-- Pending workouts survive failed uploads, failed downloads and app restarts. An expired token requires reauthentication to the same account without removing local records.
-- Server receipts prevent duplicate uploads and resurrection after a workout is deleted on the website. Reused IDs with different data return a conflict and preserve the local copy.
-- Downloaded history is replaced only after a successful full snapshot, so website deletions and edits appear on the next sync. Local pending records remain separate.
-- Account data is partitioned by HTTPS origin and user ID. Sign-out requires finishing/discarding drafts and confirming uploads, then revokes the token and removes the local cache. Android backups are disabled.
+- Dashboard with per-category best tested/estimated 1RMs and workout history.
+- Lift library, per-lift recent sets, progress bars, manual 1RM tests with date and notes, and a shortcut to log sets for a lift.
+- Native workouts with date/notes, kg, reps and optional RPE. Added sets persist as a SQLite draft. Completed workouts can have sets added/removed and can be deleted.
+- Percentage and estimated-1RM calculators, available offline.
+- Body-weight entries with date/notes, latest value, progress history and deletion.
+- Create/rename/reassign/archive/unarchive lifts; create/rename/delete categories. Deleting a category moves its lifts to Uncategorized. Drag handles in Arrange dashboard and accessible Move up/down controls in Manage library arrange categories and lifts.
+- SQLite-backed offline changes, immediate local projection, reconnect/foreground/manual/30-second sync. Pending changes survive app restarts and authentication expiry. Account & sync shows pending entries and allows explicit discard of unconfirmed local changes.
+- Durable server receipts prevent duplicate writes or resurrection after deletion. Edits compare their previous content in a serializable transaction; stale edits return a conflict rather than overwriting website changes. A conflict currently blocks subsequent uploads until the user reviews/discards it; downloading still continues.
+- Email-link sign-in using the existing encrypted account lookup and Resend service. The email link opens an explicit browser confirmation; return to the requesting phone to complete sign-in. A device-only verifier is kept in SecureStore. No Resend key or email token is embedded in the APK. Password login is disabled by default and can be enabled only for legacy preview test accounts with `MOBILE_PASSWORD_LOGIN=true`.
 
-This is a first functional slice, not a Play Store release. Mobile editing/deleting of synced workouts, body-weight entry, personal-record charts, category/lift administration, conflict resolution UI, account deletion, background sync while closed, and production release assets are not implemented yet. Workout units are kilograms, matching the current web interface. Use a test account until device acceptance tests are completed.
+Native device acceptance is still required. This is not a Play Store release. User administration, new-account onboarding, and the newer web session-planning lifecycle are outside the previously agreed feature list and remain on the website. Planned/in-progress sessions cannot be edited by the mobile API. Completed planned-session set links are retained. Full-screen charts currently use accessible horizontal bars, not the web chart component. Drag reordering needs device gesture verification.
+
+## Preview environment configuration
+
+The branch includes the current web main branch (including magic-link accounts and session-planning schema). Existing web migrations and the new `20261026120000_mobile_magic` migration must run before installing the updated APK.
+
+Set `MOBILE_AUTH_ORIGIN` to the exact trusted HTTPS origin for email confirmations. Reuse the server's `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `EMAIL_HMAC_KEY` and `EMAIL_ENCRYPTION_KEY`; never copy them into Expo environment variables. The existing web seed now uses `OWNER_EMAIL`; the old seed email/password variables are no longer used by the seed script. Do not run tests against copied production accounts. The original dedicated preview password account remains usable only while the preview-only password flag is enabled.
 
 ## Backend / Upsun
 
-Deploy the web changes to a preview environment first. The existing `npx prisma migrate deploy` hook installs the three new mobile tables; no production migration has been run as part of this development work. Existing accounts and workout tables are retained. The mobile API never uses the website's development authentication bypass.
+Deploy the web changes to a preview environment first. The existing `npx prisma migrate deploy` hook installs the mobile tables; no production migration has been run as part of this development work. Existing accounts and workout tables are retained. The mobile API never uses the website's development authentication bypass.
 
 Routes:
 
-- `POST /api/mobile/v1/auth`: `{ email, password }` → device token (30 days), expiration and public user details.
+- `POST /api/mobile/v1/magic`: request an email challenge, confirm the email token, then claim on the requesting device; returns a 30-day device token.
+- `POST /api/mobile/v1/auth`: optional legacy preview password login, off by default.
 - `DELETE /api/mobile/v1/auth`: revoke current bearer token.
 - `GET /api/mobile/v1/sync`: authenticated full snapshot.
-- `POST /api/mobile/v1/sync`: authenticated completed-workout mutation; acknowledges its UUID.
+- `POST /api/mobile/v1/sync`: authenticated workout, manual 1RM or compare-and-swap entity change; acknowledges its UUID.
 
-Bearer tokens are stored as SHA-256 digests on the server. Sign-in is limited atomically to 10 attempts per normalized email per 15 minutes across app instances. Before public launch, add gateway-level abuse controls and scheduled cleanup of expired tokens/login-limit rows. Retain mutation receipts for as long as the account exists. Future mobile editing needs entity revisions and deletion tombstones integrated into BOTH web and mobile writes; do not add last-write-wins overwrites to this API.
+Bearer tokens are stored as SHA-256 digests on the server. Sign-in is limited atomically to 10 attempts per normalized email per 15 minutes across app instances. Before public launch, add gateway-level abuse controls and scheduled cleanup of expired tokens/login-limit rows. Retain mutation receipts for as long as the account exists. Entity edits compare canonical content read within a serializable transaction, including edits made by the existing web actions. Receipt retention ensures delayed deletes/creates cannot resurrect data. Do not add last-write-wins writes.
 
 Full snapshots keep the first protocol simple. Pagination/delta sync is a later scalability improvement. Conflicting uploads currently keep their local data and display an error; a blocked record can delay later uploads until resolution support is added. Mobile API v1 must remain backward compatible as installed clients can lag behind web deployments.
 
@@ -110,7 +117,7 @@ The integration test refuses non-localhost databases or other database names and
 - Web TypeScript and lint for new API/shared/tests: passed.
 - Sync/validation tests: 7 passed.
 - Live API integration suite: passed against temporary local PostgreSQL 16, including concurrent uploads.
-- Full repository lint: blocked by the existing `react-hooks/set-state-in-effect` error in `src/components/DateInput.tsx`.
+- Full repository lint: passed after merging the current web main branch.
 - Mobile dependency audit: 5 high findings in the Expo CLI dependency chain (`node-forge` and `zod`, including their parent packages). The suggested automatic fix downgrades Expo to SDK 44; it was not applied. Track compatible upstream fixes before release. These findings are tooling-related and are not proof of an exploitable app path.
 - Native APK compilation: passed on Expo EAS on 25 October 2026. Emulator/phone testing is still required; no Android SDK/emulator was found on this workstation.
 
@@ -125,3 +132,12 @@ The integration test refuses non-localhost databases or other database names and
 - Use a fresh preview database for testing. Do not point the app at production until the mobile API has been deliberately deployed there.
 
 Successful internal preview APK: https://expo.dev/artifacts/eas/mvBVWEorpFBkHZzx0UCqx7BvbuCQwRPDkfjoCpwNVNg.apk
+
+## Expanded preview acceptance
+
+1. Upgrade the APK in place without uninstalling: confirm the existing cache/draft remains.
+2. In airplane mode, create a category/lift, log a manual 1RM and body weight; reopen and verify all remain visible.
+3. Edit a completed workout, remove/add sets, delete an entry and rearrange categories/lifts; reconnect and confirm the same result on the website.
+4. Change the same lift on the website while an offline phone edit is pending. Confirm sync reports a conflict and the website edit survives; review/discard the local edit in Account & sync.
+5. Request an email link, open and confirm it, return to the app. Reopening the email must not authorize a different phone. Verify sign-out and web “log out everywhere” revoke the device token.
+6. Confirm copied production accounts are not used for destructive tests. Native keyboard, back navigation, font scaling and visual QA are still needed on an installed build.

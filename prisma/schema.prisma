@@ -223,3 +223,16 @@ model MobileLoginLimit {
   attempts  Int
   resetAt   DateTime
 }
+
+// Email confirmation and device possession are both required to issue a token.
+model MobileMagicChallenge {
+  id           String   @id
+  tokenHash    String   @unique
+  verifierHash String
+  userId       String?
+  confirmedAt  DateTime?
+  claimedAt    DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  @@index([expiresAt])
+}

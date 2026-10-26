@@ -1,13 +1,13 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode, type ComponentRef, type RefObject } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useTracker } from '../lib/provider';
 import { colors, styles } from './ui';
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({ children, scrollRef }: { children: ReactNode; scrollRef?: RefObject<ComponentRef<typeof ScrollView> | null> }) {
   const { ready, account } = useTracker();
   if (!ready) return <ActivityIndicator />;
   if (!account) return <Redirect href="/" />;
-  return <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</ScrollView></KeyboardAvoidingView>;
+  return <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">{children}</ScrollView></KeyboardAvoidingView>;
 }
 export function useAction() {
   const locked = useRef(false);

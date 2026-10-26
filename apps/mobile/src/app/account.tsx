@@ -3,7 +3,17 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { router } from 'expo-router';
 import { useTracker } from '../lib/provider';
 import { Button, Card, styles } from '../components/ui';
+import type { MobileMutation } from '../lib/types';
 import { SignIn } from '../components/SignIn';
+function pendingDescription(m: MobileMutation) {
+  if (!('kind' in m)) return `${new Date(m.workout.date).toLocaleDateString()} · ${m.workout.setEntries.length} sets`;
+  if (m.kind === 'manual-1rm') return `${new Date(m.entry.date).toLocaleDateString()} · ${m.entry.weight} kg${m.entry.notes ? ` · ${m.entry.notes}` : ''}`;
+  const row = m.after ?? m.before;
+  if (!row) return '';
+  const action = !m.after ? 'Delete' : !m.before ? 'Create' : 'Update';
+  if ('name' in row) return `${action}: ${row.name}${'archived' in row && row.archived ? ' (archived)' : ''}`;
+  return `${action}: ${new Date(row.date).toLocaleDateString()} · ${'weight' in row ? `${row.weight} kg` : `${row.setEntries.length} sets`}${row.notes ? ` · ${row.notes}` : ''}`;
+}
 export default function AccountScreen() {
   const tracker = useTracker();
   const [error, setError] = useState('');
@@ -14,7 +24,7 @@ export default function AccountScreen() {
       <Button title={tracker.busy ? 'Syncing…' : 'Sync now'} disabled={tracker.busy} onPress={() => void tracker.sync()} />
     </Card>
     {tracker.local.pending.map((p) => <Card key={p.mutation.mutationId}><Text style={styles.heading}>{'kind' in p.mutation ? p.mutation.kind === 'change' ? `Saved change: ${p.mutation.entity}` : 'Manual 1RM test' : 'Saved workout'}</Text><Text style={styles.muted}>{p.accepted ? 'Uploaded; waiting for download confirmation' : 'Saved on this phone; awaiting upload'}</Text>
-      <Text selectable style={styles.muted}>{JSON.stringify(p.mutation, null, 2)}</Text>
+      <Text selectable style={styles.muted}>{pendingDescription(p.mutation)}</Text>
       {!p.accepted && <Button secondary title="Discard this pending change" disabled={tracker.busy} onPress={() => Alert.alert('Discard this local change?', 'Review or copy its details first. This cannot be undone. Later changes depending on it may also need to be discarded.', [{ text: 'Keep', style: 'cancel' }, { text: 'Discard', style: 'destructive', onPress: () => { void tracker.discardPending(p.mutation.mutationId).catch((e) => setError(e.message)); } }])} />}
     </Card>)}
     {tracker.needsLogin && <SignIn />}

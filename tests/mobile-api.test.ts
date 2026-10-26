@@ -58,6 +58,51 @@ test('mobile API: isolation, retries, deletion, validation, revocation and throt
     await prisma.session.delete({ where: { id } });
     assert.equal((await call('sync', token, mutation)).status, 200);
     assert.equal(await prisma.session.count({ where: { id } }), 0, 'Retry must not resurrect a deleted workout');
+    // Manual max ownership, concurrent retries, and deletion receipts.
+    const mid = randomUUID();
+    const manual = { kind: 'manual-1rm', mutationId: mid, entry: { id: mid, liftId: la.id, weight: 110, date: new Date().toISOString(), notes: 'Tested' } };
+    assert.deepEqual((await Promise.all([call('sync', token, manual), call('sync', token, manual)])).map((r) => r.status), [200, 200]);
+    const wrongManual = structuredClone(manual); wrongManual.mutationId = wrongManual.entry.id = randomUUID(); wrongManual.entry.liftId = lb.id;
+    assert.equal((await call('sync', token, wrongManual)).status, 409);
+    assert.equal((await (await call('sync', token)).json()).oneRepMaxes.length, 1);
+    await prisma.oneRepMaxEntry.delete({ where: { id: mid } });
+    assert.equal((await call('sync', token, manual)).status, 200);
+    assert.equal(await prisma.oneRepMaxEntry.count({ where: { id: mid } }), 0);
+    // Compare-and-swap edits: stale changes cannot overwrite a website edit.
+    const initial: Snapshot = await (await call('sync', token)).json();
+    const liftBefore = initial.lifts[0];
+    const edit = { kind: 'change', entity: 'lifts', mutationId: randomUUID(), id: la.id, before: liftBefore, after: { ...liftBefore, name: 'Mobile squat' } };
+    await prisma.lift.update({ where: { id: la.id }, data: { name: 'Web squat' } });
+    assert.equal((await call('sync', token, edit)).status, 409);
+    assert.equal((await prisma.lift.findUnique({ where: { id: la.id } }))?.name, 'Web squat');
+    const latest = (await (await call('sync', token)).json()).lifts[0];
+    const validEdit = { ...edit, mutationId: randomUUID(), before: latest, after: { ...latest, name: 'Mobile squat' } };
+    assert.equal((await call('sync', token, validEdit)).status, 200);
+    assert.equal((await call('sync', token, validEdit)).status, 200);
+    const bid = randomUUID();
+    const body = { kind: 'change', entity: 'bodyWeights', mutationId: bid, id: bid, before: null, after: { id: bid, date: new Date().toISOString(), weight: 80, notes: null } };
+    assert.equal((await call('sync', token, body)).status, 200);
+    const bodyBefore = (await (await call('sync', token)).json()).bodyWeights[0];
+    assert.equal((await call('sync', token, { ...body, mutationId: randomUUID(), before: bodyBefore, after: null })).status, 200);
+    assert.equal((await call('sync', token, body)).status, 200);
+    assert.equal(await prisma.bodyWeightEntry.count({ where: { id: bid } }), 0);
+    const sid = randomUUID();
+    const newSession = { kind: 'change', entity: 'sessions', mutationId: sid, id: sid, before: null, after: { ...mutation.workout, id: sid } };
+    assert.equal((await call('sync', token, newSession)).status, 200);
+    const queuedEdit = { ...newSession, mutationId: randomUUID(), before: newSession.after, after: { ...newSession.after, notes: 'Edited before first sync' } };
+    assert.equal((await call('sync', token, queuedEdit)).status, 200, 'Offline edits should survive server-assigned set IDs');
+    const fallback = await prisma.category.create({ data: { userId: a.id, name: 'Uncategorized', isUncategorized: true } });
+    const categoryBefore = (await (await call('sync', token)).json()).categories.find((c: { id: string }) => c.id === ca.id);
+    assert.equal((await call('sync', token, { kind: 'change', entity: 'categories', mutationId: randomUUID(), id: ca.id, before: categoryBefore, after: null })).status, 200);
+    assert.equal((await prisma.lift.findUnique({ where: { id: la.id } }))?.categoryId, fallback.id);
+    const fallbackBefore = (await (await call('sync', token)).json()).categories.find((c: { id: string }) => c.id === fallback.id);
+    assert.equal((await call('sync', token, { kind: 'change', entity: 'categories', mutationId: randomUUID(), id: fallback.id, before: fallbackBefore, after: null })).status, 409);
+    const sessionBefore = (await (await call('sync', token)).json()).sessions[0];
+    assert.equal((await call('sync', token, { ...newSession, mutationId: randomUUID(), before: sessionBefore, after: { ...sessionBefore, setEntries: [] } })).status, 200);
+    assert.equal(await prisma.setEntry.count({ where: { sessionId: sid } }), 0);
+    await prisma.user.update({ where: { id: a.id }, data: { disabledAt: new Date() } });
+    assert.equal((await call('sync', token)).status, 401);
+    await prisma.user.update({ where: { id: a.id }, data: { disabledAt: null } });
     assert.equal((await call('auth', token, undefined, 'DELETE')).status, 200);
     assert.equal((await call('sync', token)).status, 401);
     const expiring = await (await call('auth', undefined, { email: b.email, password })).json();
@@ -70,5 +115,35 @@ test('mobile API: isolation, retries, deletion, validation, revocation and throt
   } finally {
     await prisma.user.deleteMany({ where: { id: { in: users } } });
     await prisma.$disconnect();
+  }
+});
+
+test('mobile magic link requires email confirmation plus device secret and revokes safely', { skip: !enabled }, async () => {
+  const database = new URL(connectionString!); assert.ok(['localhost', '127.0.0.1'].includes(database.hostname) && database.pathname === '/workout_mobile_test');
+  assert.ok(['localhost', '127.0.0.1'].includes(new URL(origin!).hostname));
+  const { createHash, randomBytes } = await import('node:crypto');
+  const hash = (v: string) => createHash('sha256').update(v).digest('hex');
+  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  const user = await prisma.user.create({ data: { email: `magic-${randomUUID()}@example.test`, onboardingCompletedAt: new Date() } });
+  const id = randomBytes(24).toString('hex'), secret = randomBytes(32).toString('hex'), verifier = randomBytes(40).toString('hex');
+  const call = (body: unknown) => fetch(`${origin}/api/mobile/v1/magic`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  try {
+    await prisma.mobileMagicChallenge.create({ data: { id, userId: user.id, tokenHash: hash(secret), verifierHash: hash(verifier), expiresAt: new Date(Date.now() + 60000) } });
+    assert.deepEqual(await (await call({ action: 'claim', id, verifier })).json(), { pending: true });
+    assert.equal((await call({ action: 'claim', id, verifier: '0'.repeat(80) })).status, 401);
+    assert.equal((await call({ action: 'confirm', token: secret })).status, 200);
+    assert.equal((await call({ action: 'confirm', token: secret })).status, 400);
+    const replies = await Promise.all([call({ action: 'claim', id, verifier }), call({ action: 'claim', id, verifier })]);
+    assert.deepEqual(replies.map((r) => r.status), [200, 200]);
+    const first = await replies[0].json(), second = await replies[1].json();
+    assert.equal(first.token, second.token); assert.equal(first.user.id, user.id);
+    assert.equal(await prisma.mobileToken.count({ where: { userId: user.id } }), 1);
+    await prisma.mobileToken.deleteMany({ where: { userId: user.id } });
+    assert.equal((await call({ action: 'claim', id, verifier })).status, 401, 'A retry cannot resurrect a revoked device session');
+    await prisma.mobileMagicChallenge.update({ where: { id }, data: { expiresAt: new Date(0) } });
+    assert.equal((await call({ action: 'claim', id, verifier })).status, 401);
+  } finally {
+    await prisma.mobileMagicChallenge.deleteMany({ where: { id } });
+    await prisma.user.delete({ where: { id: user.id } }); await prisma.$disconnect();
   }
 });
