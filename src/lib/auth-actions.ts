@@ -1,7 +1,8 @@
 "use server";
 
 import { createHash, randomBytes } from "crypto";
-import { headers } from "next/headers";
+import { authOrigin } from "@/lib/auth-origin";
+import { admitAuthRequest } from "@/lib/auth-rate-limit";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -15,26 +16,10 @@ import {
 } from "@/lib/session";
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
-const MAX_REQUESTS_PER_EMAIL_PER_HOUR = 5;
-const MAX_REQUESTS_PER_IP_PER_HOUR = 20;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
-}
-
-async function getRequestIp(): Promise<string | null> {
-  const headerList = await headers();
-  const forwarded = headerList.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || null;
-  return headerList.get("x-real-ip");
-}
-
-async function getRequestOrigin(): Promise<string> {
-  const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const proto = headerList.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }
 
 // Purpose is chosen by the server action, never by a hidden form field.
@@ -51,45 +36,19 @@ async function issueMagicLink(formData: FormData, purpose: "LOGIN" | "SIGNUP") {
   if (!isMagicLinkEmailConfigured()) redirect(`${entryPath}?error=login-unavailable`);
   const emailInput = String(formData.get("email") ?? "").trim();
 
-  if (!EMAIL_RE.test(emailInput)) {
+  if (emailInput.length > 254 || !EMAIL_RE.test(emailInput)) {
     redirect(`${entryPath}?error=invalid-email`);
   }
 
+  let origin: string;
+  try { origin = authOrigin(); }
+  catch { redirect(`${entryPath}?error=login-unavailable`); }
   const emailHash = hashEmail(emailInput);
-  const existing = await prisma.user.findUnique({ where: { emailHash } });
-  if (existing?.disabledAt || (purpose === "LOGIN" && !existing)) {
+  if (!await admitAuthRequest(`web:${emailHash}`, 5, 3600)) {
     redirect(`${entryPath}?sent=1`);
   }
-  const requestIp = await getRequestIp();
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-
-  // Light cleanup: drop this address's expired/consumed tokens so the
-  // rate-limit count below reflects live requests, not accumulated
-  // history, and so encrypted PII doesn't linger in dead token rows.
-  await prisma.magicLinkToken.deleteMany({
-    where: {
-      emailHash,
-      OR: [{ consumedAt: { not: null } }, { expiresAt: { lt: new Date() } }],
-    },
-  });
-
-  const [emailCount, ipCount] = await Promise.all([
-    prisma.magicLinkToken.count({
-      where: { emailHash, createdAt: { gte: oneHourAgo } },
-    }),
-    requestIp
-      ? prisma.magicLinkToken.count({
-          where: { requestIp, createdAt: { gte: oneHourAgo } },
-        })
-      : Promise.resolve(0),
-  ]);
-
-  if (
-    emailCount >= MAX_REQUESTS_PER_EMAIL_PER_HOUR ||
-    ipCount >= MAX_REQUESTS_PER_IP_PER_HOUR
-  ) {
-    // Same response as success — don't reveal rate limiting (or whether
-    // the address has an account) to a potential abuser.
+  const existing = await prisma.user.findUnique({ where: { emailHash } });
+  if (existing?.disabledAt || (purpose === "LOGIN" && !existing)) {
     redirect(`${entryPath}?sent=1`);
   }
 
@@ -101,12 +60,11 @@ async function issueMagicLink(formData: FormData, purpose: "LOGIN" | "SIGNUP") {
       tokenHash: hashToken(token),
       emailHash,
       emailCiphertext: encryptEmail(emailInput),
-      requestIp,
+      requestIp: null,
       expiresAt: new Date(Date.now() + TOKEN_TTL_MS),
     },
   });
 
-  const origin = await getRequestOrigin();
   try {
     await sendMagicLinkEmail(emailInput, `${origin}/login/verify?token=${token}`);
   } catch {

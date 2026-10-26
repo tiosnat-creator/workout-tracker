@@ -72,4 +72,5 @@ export async function destroySession(): Promise<void> {
 
 export async function destroyAllSessionsForUser(userId: string): Promise<void> {
   await prisma.userSession.deleteMany({ where: { userId } });
+  await prisma.mobileToken.deleteMany({ where: { userId } });
 }

@@ -40,6 +40,8 @@ test('configured delivery works and provider failures never expose request detai
 });
 function actions(configured, prisma, send = async () => {}) {
   return load('src/lib/auth-actions.ts', {
+    '@/lib/auth-origin': { authOrigin: () => 'https://example.com' },
+    '@/lib/auth-rate-limit': { admitAuthRequest: async () => true },
     crypto, 'next/headers': { headers: async () => new Map([['host', 'example.com']]) },
     'next/navigation': { redirect: path => { throw Error(path); } },
     '@prisma/client': { Prisma: {} }, '@/lib/prisma': { prisma },

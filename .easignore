@@ -1,0 +1,21 @@
+# Upload only native app sources and their shared contracts to EAS.
+/*
+!/apps
+/apps/*
+!/apps/mobile
+!/apps/mobile/**
+!/packages
+/packages/*
+!/packages/shared
+!/packages/shared/**
+**/node_modules/
+**/.expo/
+**/dist/
+**/android/
+**/ios/
+**/.env*
+**/credentials.json
+**/*.jks
+**/*.keystore
+**/*.pem
+**/.DS_Store

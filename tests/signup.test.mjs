@@ -38,6 +38,8 @@ function auth({ user = null, record = null, configured = true } = {}) {
     },
   };
   const actions = load('src/lib/auth-actions.ts', {
+    '@/lib/auth-origin': { authOrigin: () => 'https://example.com' },
+    '@/lib/auth-rate-limit': { admitAuthRequest: async () => true },
     crypto, 'next/headers': { headers: async () => new Map([['host', 'example.com']]) },
     'next/navigation': { redirect }, '@prisma/client': { Prisma: {} },
     '@/lib/prisma': { prisma },

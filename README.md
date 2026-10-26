@@ -94,3 +94,7 @@ scenarios. Run `npm test` for the isolated auth/profile regression tests.
 The new migration preserves existing accounts and requires onboarding only for
 new signups. Username is a non-unique display name (3–30 letters, numbers,
 dots, underscores or hyphens); email remains the login identity.
+
+## Android app
+
+The dedicated offline-capable app lives in `apps/mobile`. See [Android development and testing](docs/android.md).
