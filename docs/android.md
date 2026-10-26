@@ -112,12 +112,16 @@ The integration test refuses non-localhost databases or other database names and
 - Live API integration suite: passed against temporary local PostgreSQL 16, including concurrent uploads.
 - Full repository lint: blocked by the existing `react-hooks/set-state-in-effect` error in `src/components/DateInput.tsx`.
 - Mobile dependency audit: 5 high findings in the Expo CLI dependency chain (`node-forge` and `zod`, including their parent packages). The suggested automatic fix downgrades Expo to SDK 44; it was not applied. Track compatible upstream fixes before release. These findings are tooling-related and are not proof of an exploitable app path.
-- Native emulator/phone testing and APK/AAB compilation: still required; no Android SDK/emulator was found on this workstation.
+- Native APK compilation: passed on Expo EAS on 25 October 2026. Emulator/phone testing is still required; no Android SDK/emulator was found on this workstation.
 
 ## Preview rollout — 25 October 2026
 
 - Code is on GitHub branch `codex/android-preview`; production remains unchanged.
 - First EAS build failed during installation because the automatically selected React DOM peer did not match React. This was fixed by explicitly adding Expo-compatible React DOM and verifying `npm ci`, TypeScript and lint.
 - Replacement APK build: https://expo.dev/accounts/tiosnat89s-team/projects/workout-tracker/builds/879418f9-37ab-4236-8f6b-bdfdc619a425
-- Upsun preview deployment is blocked by the existing GitHub source integration returning HTTP 401 when fetching the repository. Its access token needs renewal in Upsun before the new branch can be activated. The local Upsun and GitHub CLI sessions work; this is a separate integration credential.
+- Upsun GitHub integration authentication was renewed and validated. The preview build and mobile database migration succeeded. The missing seed account variables were configured as sensitive, runtime-only, non-inheritable preview variables on 26 October; redeployment `7fs4psdbxxcjc` completed successfully. Authentication is explicitly enabled (`AUTH_DISABLED=false`). Production is unchanged.
+- Activation logs show that Upsun cloned the parent database. A separate, randomly named test account now has 14 starter lifts and no workouts. Sign-in and authenticated initial sync passed, and the verification token was revoked. Existing copied accounts were not modified; use only the dedicated test account for device acceptance tests.
+- Preview origin: https://codex-android-preview-sezopsi-ufvziel52vw7w.eu-5.platformsh.site
 - Use a fresh preview database for testing. Do not point the app at production until the mobile API has been deliberately deployed there.
+
+Successful internal preview APK: https://expo.dev/artifacts/eas/mvBVWEorpFBkHZzx0UCqx7BvbuCQwRPDkfjoCpwNVNg.apk

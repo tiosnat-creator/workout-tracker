@@ -3,8 +3,8 @@ import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Network from 'expo-network';
 import { api, request, serverOrigin, ApiError } from './api';
-import { accountKey, type Account, type Snapshot } from './types';
-import { clearLocal, readLocal, syncStore } from './store';
+import { accountKey, projectSnapshot, parseMobileMutation, type MobileMutation, type Account, type Snapshot } from './types';
+import { clearLocal, readLocal, syncStore, queueChange, removePending } from './store';
 import { synchronize } from './sync';
 const sessionKey = 'workout-account-v1';
 type Local = Awaited<ReturnType<typeof readLocal>>;
@@ -42,7 +42,7 @@ function useTrackerState() {
     } catch (error) {
       if (error instanceof ApiError) {
         setMessage(error.message); if (error.status === 401) setNeedsLogin(true);
-      } else setMessage('Could not connect. Workouts stay on this phone; we’ll retry.');
+      } else setMessage('Could not connect. Entries stay on this phone; we’ll retry.');
     } finally {
       try { await refresh(); } catch { setMessage('Unable to read local storage. Please reopen the app.'); }
       lock.current = false; setBusy(false);
@@ -87,14 +87,30 @@ function useTrackerState() {
     lock.current = true; setBusy(true);
     try {
       const data = await readLocal(accountKey(active));
-      if (data.pending.length || data.draft?.setEntries.length) throw new Error('Sync your saved workouts and finish or discard your draft before signing out.');
+      if (data.pending.length || data.draft?.setEntries.length) throw new Error('Sync your saved entries and finish or discard your draft before signing out.');
       await api(active, 'auth', undefined, 'DELETE');
       await SecureStore.deleteItemAsync(sessionKey);
       await clearLocal(accountKey(active));
       accountRef.current = null; setAccount(null); setLocal(empty); setMessage(''); setNeedsLogin(false);
     } finally { lock.current = false; setBusy(false); }
   }
-  return { account, local, ready, busy, message, needsLogin, refresh, sync, login, logout };
+  async function save(mutation: MobileMutation) {
+    const active = accountRef.current;
+    if (!active) throw new Error('Sign in first.');
+    await queueChange(accountKey(active), parseMobileMutation(mutation));
+    await refresh();
+    void sync();
+  }
+  async function discardPending(id: string) {
+    if (lock.current) throw new Error('Wait for sync to finish.');
+    const active = accountRef.current;
+    if (!active) return;
+    lock.current = true;
+    try { await removePending(accountKey(active), id); await refresh(); }
+    finally { lock.current = false; }
+  }
+  const view = local.snapshot ? projectSnapshot(local.snapshot, local.pending.map((p) => p.mutation)) : null;
+  return { view, save, discardPending, account, local, ready, busy, message, needsLogin, refresh, sync, login, logout };
 }
 const TrackerContext = createContext<ReturnType<typeof useTrackerState> | null>(null);
 export function TrackerProvider({ children }: { children: ReactNode }) {

@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View, Pressable } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Crypto from 'expo-crypto';
 import { useTracker } from '../lib/provider';
 import { accountKey, parseMutation, type Workout } from '../lib/types';
 import { discardDraft, finishDraft, readLocal, saveDraft } from '../lib/store';
+import { dateInput } from '../lib/training';
 import { Button, Card, colors, Field, styles } from '../components/ui';
 export default function WorkoutScreen() {
   const tracker = useTracker();
+  const params = useLocalSearchParams<{ liftId?: string }>();
   const [draft, setDraft] = useState<Workout | null>(null);
-  const [liftId, setLiftId] = useState('');
+  const [liftId, setLiftId] = useState(typeof params.liftId === 'string' ? params.liftId : '');
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [rpe, setRpe] = useState('');
@@ -18,7 +20,7 @@ export default function WorkoutScreen() {
   const saving = useRef(false);
   const key = tracker.account ? accountKey(tracker.account) : null;
   const refresh = tracker.refresh;
-  const lifts = tracker.local.snapshot?.lifts ?? [];
+  const lifts = tracker.view?.lifts ?? [];
   useEffect(() => {
     if (!key) { router.replace('/'); return; }
     let alive = true;
@@ -57,6 +59,8 @@ export default function WorkoutScreen() {
     <Text style={styles.eyebrow}>ONE SET AT A TIME</Text><Text style={styles.title}>Let’s get stronger.</Text>
     <Text style={styles.muted}>Tap “Add set” to save it on this phone immediately, even offline.</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {draft && <Card><Field label="Workout date (YYYY-MM-DD)" defaultValue={draft.date.slice(0, 10)} onEndEditing={(e) => { const value = e.nativeEvent.text; void perform(async () => { if (!key) return; const next = { ...draft, date: dateInput(value) }; await saveDraft(key, next); setDraft(next); await refresh(); }); }} />
+      <Field label="Workout notes (optional)" defaultValue={draft.notes ?? ''} maxLength={2000} onEndEditing={(e) => { const value = e.nativeEvent.text; void perform(async () => { if (!key) return; const next = { ...draft, notes: value.trim() || null }; await saveDraft(key, next); setDraft(next); await refresh(); }); }} /></Card>}
     <Card><Text style={styles.heading}>Choose your lift</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {lifts.filter((l) => !l.archived).map((lift) => <Pressable key={lift.id} accessibilityRole="button" accessibilityState={{ selected: liftId === lift.id }} onPress={() => setLiftId(lift.id)} style={{ padding: 14, borderRadius: 12, backgroundColor: lift.id === liftId ? colors.teal : colors.pale }}><Text style={{ color: lift.id === liftId ? '#FFFFFF' : colors.teal, fontWeight: '600' }}>{lift.name}</Text></Pressable>)}
     </View><View style={{ flexDirection: 'row', gap: 12 }}><View style={{ flex: 1 }}><Field label="Weight (kg)" value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="60" /></View><View style={{ flex: 1 }}><Field label="Reps" value={reps} onChangeText={setReps} keyboardType="number-pad" placeholder="5" /></View></View>

@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { Snapshot, Workout, WorkoutMutation } from './types';
+import type { Snapshot, Workout, WorkoutMutation, ManualMutation, MobileMutation } from './types';
 import type { Pending, SyncStore } from './sync';
 let database: Promise<SQLite.SQLiteDatabase> | undefined;
 function db() {
@@ -30,6 +30,9 @@ export async function finishDraft(account: string, mutation: WorkoutMutation) {
     await tx.runAsync('DELETE FROM drafts WHERE account = ?', account);
   });
 }
+export async function saveManualEntry(account: string, mutation: ManualMutation) {
+  await (await db()).runAsync('INSERT INTO outbox(account,id,payload) VALUES (?,?,?)', account, mutation.mutationId, JSON.stringify(mutation));
+}
 export async function discardDraft(account: string) {
   await (await db()).runAsync('DELETE FROM drafts WHERE account = ?', account);
 }
@@ -49,4 +52,11 @@ export async function clearLocal(account: string) {
   await (await db()).withExclusiveTransactionAsync(async (tx) => {
     for (const table of ['cache', 'outbox', 'drafts']) await tx.runAsync(`DELETE FROM ${table} WHERE account = ?`, account);
   });
+}
+
+export async function queueChange(account: string, mutation: MobileMutation) {
+  await (await db()).runAsync('INSERT INTO outbox(account,id,payload) VALUES (?,?,?)', account, mutation.mutationId, JSON.stringify(mutation));
+}
+export async function removePending(account: string, id: string) {
+  await (await db()).runAsync('DELETE FROM outbox WHERE account = ? AND id = ? AND accepted = 0', account, id);
 }

@@ -1,5 +1,5 @@
-import type { Snapshot, WorkoutMutation } from './types';
-export type Pending = { mutation: WorkoutMutation; accepted: boolean };
+import type { Snapshot, MobileMutation } from './types';
+export type Pending = { mutation: MobileMutation; accepted: boolean };
 export type SyncStore = {
   list(): Promise<Pending[]>;
   markAccepted(id: string): Promise<void>;
@@ -7,7 +7,7 @@ export type SyncStore = {
 };
 /** A receipt is durable before the pull. A crash at any await safely retries. */
 export async function synchronize(store: SyncStore, transport: {
-  push(mutation: WorkoutMutation): Promise<{ acknowledged: string }>;
+  push(mutation: MobileMutation): Promise<{ acknowledged: string }>;
   pull(): Promise<Snapshot>;
 }) {
   const pending = await store.list();
