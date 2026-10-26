@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getDashboardBoard, getSessions } from "@/lib/data";
 import { formatDate } from "@/lib/format";
 import { DashboardBoard } from "@/components/DashboardBoard";
 
 export default async function DashboardPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  const userId = await requireUserId();
 
   const [groups, sessions] = await Promise.all([
     getDashboardBoard(userId),
@@ -26,7 +24,7 @@ export default async function DashboardPage() {
           href="/sessions/new"
           className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground"
         >
-          + New session
+          + Plan session
         </Link>
       </div>
 
@@ -77,8 +75,11 @@ export default async function DashboardPage() {
                     {formatDate(s.date)}
                   </span>
                   <span className="text-xs text-muted">
-                    {s.setEntries.length} set
-                    {s.setEntries.length === 1 ? "" : "s"}
+                    {s.status === "PLANNED"
+                      ? `${s.plannedExercises.length} planned lift${s.plannedExercises.length === 1 ? "" : "s"}`
+                      : s.status === "IN_PROGRESS"
+                        ? `${s.setEntries.length} set${s.setEntries.length === 1 ? "" : "s"} · In progress`
+                        : `${s.setEntries.length} set${s.setEntries.length === 1 ? "" : "s"} · Completed`}
                   </span>
                 </Link>
               </li>

@@ -1,16 +1,14 @@
-import { redirect } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { createSession } from "@/lib/actions";
 import { DateInput } from "@/components/DateInput";
 
 export default async function NewSessionPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  await requireUserId();
 
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-4 text-lg font-bold tracking-tight uppercase">
-        New session
+        Plan session
       </h1>
       <form action={createSession} className="flex flex-col gap-3">
         <div>
@@ -25,12 +23,12 @@ export default async function NewSessionPage() {
           />
         </div>
         <div>
-          <label htmlFor="notes" className="mb-1 block text-sm font-medium">
-            Notes (optional)
+          <label htmlFor="planNotes" className="mb-1 block text-sm font-medium">
+            Plan notes (optional)
           </label>
           <textarea
-            id="notes"
-            name="notes"
+            id="planNotes"
+            name="planNotes"
             rows={3}
             className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
           />
@@ -39,7 +37,7 @@ export default async function NewSessionPage() {
           type="submit"
           className="mt-2 rounded bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground"
         >
-          Start session
+          Create plan
         </button>
       </form>
     </div>

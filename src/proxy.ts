@@ -1,32 +1,28 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
-import { isAuthDisabled } from "@/lib/auth-disabled";
 
-const PUBLIC_PATHS = ["/login"];
+// Optimistic check only: cookie presence, no DB call, since proxy runs on
+// every request (including prefetches). Real enforcement — session
+// validity, disabled accounts, roles — happens in the DAL
+// (src/lib/session.ts, src/lib/roles.ts) that every page/action already
+// calls; proxy should never be the only line of defense.
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-export default async function proxy(request: NextRequest) {
-  if (isAuthDisabled()) {
+  // /login and /login/verify must stay reachable while signed out — they
+  // ARE the sign-in flow. Server Actions post back to the route they're
+  // used on, so this also covers requestMagicLink/consumeMagicLink.
+  if (pathname === "/signup" || pathname === "/login" || pathname.startsWith("/login/")) {
     return NextResponse.next();
   }
 
-  const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
-
-  const session = await auth();
-
-  if (!session && !isPublic) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  if (session && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
+  if (!request.cookies.has("session")) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

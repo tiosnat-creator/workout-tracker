@@ -1,0 +1,19 @@
+-- Phase B of the multi-user auth migration — DO NOT deploy this yet.
+--
+-- Only ship this once you've confirmed the Phase A deploy
+-- (20260916120000_add_auth_and_roles) succeeded AND you can sign in as the
+-- owner via a magic link (i.e. prisma/seed.ts has actually backfilled
+-- emailHash/emailCiphertext onto the existing owner row). Deploying this
+-- before that backfill ran would drop the only column seed.ts's legacy
+-- lookup depends on, breaking the one-time backfill path permanently.
+--
+-- To apply: rename this file's extension to remove ".txt", move it into
+-- a new prisma/migrations/<timestamp>_drop_legacy_email/migration.sql
+-- folder (matching the naming convention of the other migrations in this
+-- directory), and run `prisma migrate deploy` as usual.
+
+-- AlterTable
+ALTER TABLE "User" DROP COLUMN "email";
+ALTER TABLE "User" DROP COLUMN "passwordHash";
+ALTER TABLE "User" ALTER COLUMN "emailCiphertext" SET NOT NULL;
+ALTER TABLE "User" ALTER COLUMN "emailHash" SET NOT NULL;

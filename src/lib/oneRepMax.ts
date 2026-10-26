@@ -16,6 +16,25 @@ export function percentageTable(
   return rows;
 }
 
+export function weightFromPercentage(
+  oneRepMax: number,
+  percent: number,
+  increment = 0.5,
+): number {
+  if (
+    !Number.isFinite(oneRepMax) ||
+    oneRepMax <= 0 ||
+    !Number.isFinite(percent) ||
+    percent <= 0 ||
+    !Number.isFinite(increment) ||
+    increment <= 0
+  ) {
+    return 0;
+  }
+
+  return Math.round(((oneRepMax * percent) / 100) / increment) * increment;
+}
+
 export type OneRepMaxPoint = {
   date: Date;
   weight: number;

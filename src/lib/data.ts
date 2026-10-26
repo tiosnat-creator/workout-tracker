@@ -142,7 +142,10 @@ export async function getDashboardBoard(userId: string) {
 export async function getSessions(userId: string) {
   return prisma.session.findMany({
     where: { userId },
-    include: { setEntries: { include: { lift: true } } },
+    include: {
+      setEntries: { include: { lift: true } },
+      plannedExercises: { include: { lift: true }, orderBy: { order: "asc" } },
+    },
     orderBy: { date: "desc" },
   });
 }
@@ -151,7 +154,17 @@ export async function getSessionDetail(sessionId: string, userId: string) {
   return prisma.session.findFirst({
     where: { id: sessionId, userId },
     include: {
-      setEntries: { include: { lift: true }, orderBy: { order: "asc" } },
+      plannedExercises: {
+        include: {
+          lift: true,
+          actualSets: { include: { lift: true }, orderBy: { order: "asc" } },
+        },
+        orderBy: { order: "asc" },
+      },
+      setEntries: {
+        include: { lift: true, plannedExercise: true },
+        orderBy: { order: "asc" },
+      },
     },
   });
 }

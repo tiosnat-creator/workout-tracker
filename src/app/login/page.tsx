@@ -1,59 +1,49 @@
-"use client";
+import Link from "next/link";
+import { requestMagicLink } from "@/lib/auth-actions";
+import { actionErrorMessage } from "@/lib/action-errors";
+import { ErrorBanner } from "@/components/ErrorBanner";
 
-import { useActionState } from "react";
-import { authenticate } from "@/lib/auth-actions";
+export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
-  const [errorMessage, formAction, pending] = useActionState(
-    authenticate,
-    undefined,
-  );
+export default async function LoginPage({
+  searchParams,
+}: PageProps<"/login">) {
+  const { error, sent } = await searchParams;
+  const errorCode = Array.isArray(error) ? error[0] : error;
 
   return (
-    <div className="mx-auto mt-16 max-w-sm">
-      <h1 className="mb-1 text-xl font-bold tracking-tight uppercase">
-        Lifting Log
-      </h1>
-      <p className="mb-6 text-sm text-muted">Sign in to your tracker.</p>
-      <form action={formAction} className="flex flex-col gap-3">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="password"
-            className="mb-1 block text-sm font-medium"
+    <div className="mx-auto flex max-w-sm flex-col gap-4 pt-12">
+      <h1 className="text-lg font-bold tracking-tight uppercase">Log in</h1>
+      <ErrorBanner message={actionErrorMessage(errorCode)} />
+      {sent ? (
+        <p className="text-sm text-muted">
+          If that address has an account, a link is on its way — check your
+          inbox. The link expires in 15 minutes and can only be used once.
+        </p>
+      ) : (
+        <form action={requestMagicLink} className="flex flex-col gap-3">
+          <div>
+            <label htmlFor="email" className="mb-1 block text-sm font-medium">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoFocus
+              className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <button
+            type="submit"
+            className="mt-2 rounded bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground"
           >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-          />
-        </div>
-        {errorMessage && (
-          <p className="text-sm text-red-600">{errorMessage}</p>
-        )}
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-2 rounded bg-accent px-3 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-60"
-        >
-          {pending ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+            Send magic link
+          </button>
+        </form>
+      )}
+      <p className="text-sm text-muted">New to Lifting Log? <Link href="/signup" className="font-medium text-accent underline">Sign up</Link></p>
     </div>
   );
 }

@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { getCurrentUserId } from "@/lib/current-user";
+import { getSessionUser } from "@/lib/session";
 import { Nav } from "@/components/Nav";
+
+// Every page reads live data on every request; nothing here is safe to
+// prerender at build time (there's no database available then). Without
+// NextAuth's cookies()/headers() calls implicitly forcing this, Next has no
+// other signal that the app can't be statically generated.
+export const dynamic = "force-dynamic";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,7 +26,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const userId = await getCurrentUserId();
+  const user = await getSessionUser();
 
   return (
     <html
@@ -28,7 +34,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {userId && <Nav />}
+        {user?.onboardingCompletedAt && (
+          <Nav
+            showUserManagement={user.role === "OWNER" || user.role === "ADMIN"}
+          />
+        )}
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
           {children}
         </main>

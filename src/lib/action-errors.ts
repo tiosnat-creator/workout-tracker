@@ -2,8 +2,15 @@
 // param. Never put free text there — only a known code from this catalog may
 // be rendered, so a crafted link can't spoof arbitrary app-styled text.
 const ACTION_ERROR_ENTRIES = [
+  ["signup-required", "Create an account to get started."],
+  ["login-unavailable", "Email sign-in is temporarily unavailable. Please try again later."],
   ["duplicate-lift-name", "You already have a lift with that name."],
   ["duplicate-category-name", "You already have a category with that name."],
+  ["invalid-email", "Enter a valid email address."],
+  ["invalid-link", "That sign-in link is invalid, expired, or already used. Request a new one below."],
+  ["account-disabled", "This account has been disabled."],
+  ["cannot-modify-owner", "The owner's role or account can't be changed here."],
+  ["cannot-disable-self", "You can't disable your own account."],
 ] as const;
 
 export type ActionErrorCode = (typeof ACTION_ERROR_ENTRIES)[number][0];

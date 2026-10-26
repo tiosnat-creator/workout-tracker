@@ -1,11 +1,9 @@
-import { redirect } from "next/navigation";
-import { getCurrentUserId } from "@/lib/current-user";
+import { requireUserId } from "@/lib/roles";
 import { getCurrentOneRepMaxes } from "@/lib/data";
 import { Calculator } from "@/components/Calculator";
 
 export default async function CalculatorPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
+  const userId = await requireUserId();
   const oneRepMaxes = await getCurrentOneRepMaxes(userId);
 
   const lifts = oneRepMaxes.map(({ lift, current }) => ({
