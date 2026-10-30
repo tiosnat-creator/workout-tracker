@@ -81,6 +81,12 @@ npx eas-cli@latest build --platform android --profile preview
 
 An EAS preview APK includes its JavaScript bundle and can launch without Metro. Install it on a physical phone or emulator. An internal cloud build and Expo-managed signing key have been configured. No store submission or production deployment has been performed. Production later uses `--profile production`; distribution then requires the Play developer account, store metadata/privacy disclosures, device testing and Google review.
 
+## Website download link
+
+The website shows a "Download for Android" button on `/login` (the landing page for signed-out visitors) and on the dashboard when the server environment variable `ANDROID_APP_DOWNLOAD_URL` is set to an HTTPS URL. Unset, empty, non-HTTPS or malformed values hide the button. The value is read per request, so each Upsun environment can point at its own build without a rebuild. URLs ending in `.apk` are offered as a direct download; any other URL (for example a Play Store listing) opens normally.
+
+The production EAS profile outputs an AAB, which browsers cannot install, and the preview APK points at the preview backend. Only set the production value once a production-pointed APK is hosted at a stable URL (EAS artifact URLs change per build and may expire) or a Play Store listing exists. Sideloaded APKs require users to allow installing unknown apps.
+
 ## Acceptance test on Android
 
 1. Sign in to an Upsun test environment with an existing account and lift library. Verify history matches the website.
