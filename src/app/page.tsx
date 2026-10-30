@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/roles";
 import { getDashboardBoard, getSessions } from "@/lib/data";
 import { formatDate } from "@/lib/format";
 import { DashboardBoard } from "@/components/DashboardBoard";
+import { AndroidDownloadLink } from "@/components/AndroidDownloadLink";
 
 export default async function DashboardPage() {
   const userId = await requireUserId();
@@ -27,6 +28,8 @@ export default async function DashboardPage() {
           + Plan session
         </Link>
       </div>
+
+      <AndroidDownloadLink className="self-start" />
 
       <section>
         <div className="mb-3 flex items-center justify-between">

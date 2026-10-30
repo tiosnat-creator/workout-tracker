@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requestMagicLink } from "@/lib/auth-actions";
 import { actionErrorMessage } from "@/lib/action-errors";
 import { ErrorBanner } from "@/components/ErrorBanner";
+import { AndroidDownloadLink } from "@/components/AndroidDownloadLink";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function LoginPage({
         </form>
       )}
       <p className="text-sm text-muted">New to Lifting Log? <Link href="/signup" className="font-medium text-accent underline">Sign up</Link></p>
+      <AndroidDownloadLink className="self-start" />
     </div>
   );
 }
